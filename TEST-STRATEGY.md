@@ -26,6 +26,19 @@
 - Provider 在發布前驗證對舊 contract 仍相容
 - Consumer 對**期待的 contract** 寫測試，不是對「對方今天的實際回應」
 
+#### Consumer-Driven Contract Testing（Pact 模式）
+
+傳統 contract test 讓 provider 定義 contract，consumer 靠文件對齊；文件一旦過期就失聯。Consumer-Driven Contract Testing 反轉方向：
+
+1. **Consumer** 在自己的 repo 寫測試，描述「我期待 provider 回傳什麼」
+2. Consumer 測試執行後生成 **Pact 檔案**（JSON contract）
+3. **Provider** 的 CI 拿這份 Pact 檔驗自己的 API
+4. 若 provider 改動破壞任何 consumer 的 Pact，CI 紅燈
+
+工具：JS/TS 用 `@pact-foundation/pact`；Go 用 `github.com/pact-foundation/pact-go`；多 consumer 用 Pact Broker / PactFlow 管理。
+
+這不是「全面引入 Pact」的要求。只有一個 consumer 時，版本化 OpenAPI schema + provider-side validation test 通常足夠。Pact 值得引入的條件：**≥ 2 個 consumer 且有獨立部署週期**。
+
 ### 1.4 E2E（少量）
 **只用於 5–10 條關鍵流程：** 登入 / 結帳 / 核心 CRUD / 權限邊界 / 部署 smoke。
 

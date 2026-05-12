@@ -1,6 +1,6 @@
-# Test Categories — 12 類枚舉清單
+# Test Categories — 12 類枚舉清單 + 選用 privacy 補充
 
-> `AGENT.md` 已含一行版的 12 類速查表。本檔是**深度版**，當某類你不知道該測什麼具體案例時讀對應段。
+> `AGENT.md` 已含一行版的 12 類速查表。本檔是**深度版**，當某類你不知道該測什麼具體案例時讀對應段；§13 是 telemetry SUT 的選用補充。
 >
 > 預設立場：除非你能說「這類不適用因為 ___」，否則**就要寫**。「想不到」不是 N/A 的理由。
 
@@ -95,6 +95,20 @@
 
 **至少：** 任何讀寫資源的 endpoint 都要有「跨 tenant 拒絕」測試。
 
+**補充 OWASP Top 10 高頻項目：**
+
+| 類型 | 測試點 |
+|---|---|
+| **CSRF** | 改變狀態的 endpoint 是否驗 CSRF token / SameSite cookie？跨 origin 請求是否被拒？|
+| **CORS** | 非信任 origin 的 preflight / simple request 是否回 403 或不含 `Access-Control-Allow-Origin`？|
+| **IDOR / BOLA** | `GET /orders/{id}` 用 user B 的 token 讀 user A 的 resource，是否回 403 / 404 而非 200？路徑參數 / query param 的 ownership check 都要覆蓋。|
+| **Security headers** | `X-Frame-Options`, `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` 是否存在且設定正確？|
+| **Path traversal** | filename / path 參數傳入 `../../etc/passwd`、`%2F..%2F` 是否被拒或清洗？這是 path traversal 的黑盒測試。|
+| **File upload** | MIME type 驗證（不只靠 extension）；上傳後不可直接執行；儲存路徑不可使用 user-supplied filename；size limit 有 server-side 強制。|
+| **Mass assignment** | PATCH / PUT body 是否能讓 user 修改 `role` / `is_admin` 等不應開放的欄位？|
+
+測試原則：每個 OWASP 項目的測試都應是 **黑盒**——給特定 input，驗 HTTP 狀態 + 不該被返回的資料真的沒有出現。
+
 ## 10. Performance / scale 邊界
 
 不是 benchmark，是**規格邊界**：
@@ -125,6 +139,47 @@
 - 缺少新欄位有合理 default
 - API 新版本對舊 client 仍相容（或刻意不相容並回對的 error）
 - Migration script 跑兩次無害（idempotent）
+
+## 13. Privacy / Telemetry Leakage（選用）
+
+> 適用：任何有 structured logging / distributed tracing / metrics / error reporting 的系統。
+> 不適用於完全無 telemetry 的 SUT（明確 N/A + 理由）。
+
+現代可觀察性工具（Datadog / Sentry / OpenTelemetry）很容易在 log 或 trace 中洩漏 PII，而這類問題通常在 production 才被發現。
+
+**測試點：**
+
+| 場景 | 驗什麼 |
+|---|---|
+| 正常請求 | Log 結構中不含 password / token / credit card / SSN / DOB 等敏感值 |
+| 錯誤回應 body | 不包含 SQL query、stack trace、internal hostname、file path |
+| Auth error | 401/403 body 不吐 `"user not found"` vs `"password wrong"`（enumeration 防護）|
+| Distributed trace span | span attributes 不帶 PII；tag key 有 allow-list |
+| Metrics labels | 不使用 user ID / email 作為 metric label（cardinality + PII 雙重問題）|
+| Error reporting（Sentry 等）| breadcrumbs / extra 不含 session token / request body 原文 |
+
+**測試方式：**
+1. Capture log output（stdout / structured log）in the test and assert it does NOT contain known PII fields
+2. Call error endpoints and assert `response.body` does not contain known internal strings
+3. If using OpenTelemetry SDK, set a test exporter and assert span attributes against an allowlist
+
+**示範（Go）：**
+```go
+func TestCreateUser_LogDoesNotLeakPassword(t *testing.T) {
+    var buf bytes.Buffer
+    logger := zap.New(zapcore.NewCore(
+        zapcore.NewJSONEncoder(zap.NewProductionEncoderConfig()),
+        zapcore.AddSync(&buf), zap.InfoLevel,
+    ))
+    svc := NewService(db, logger)
+
+    _, _ = svc.CreateUser(ctx, CreateUserRequest{Email: "a@b.com", Password: "s3cr3t"})
+
+    if strings.Contains(buf.String(), "s3cr3t") {
+        t.Errorf("log must not contain raw password; got: %s", buf.String())
+    }
+}
+```
 
 ---
 

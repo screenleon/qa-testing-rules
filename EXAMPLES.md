@@ -260,6 +260,7 @@ func newTestDB(t *testing.T) *pgxpool.Pool {
 // 2. CreateOrder(qty=3)
 // 3. Assert order row in DB; assert stock=7
 func TestCreateOrder_HappyPath(t *testing.T) {
+    ctx := context.Background()
     db := newTestDB(t)
     seedProduct(t, db, "sku1", 10)
     seedUser(t, db, "u1")
@@ -286,6 +287,7 @@ func TestCreateOrder_HappyPath(t *testing.T) {
 // 2. CreateOrder(qty=5) — should fail
 // 3. Assert InsufficientStock error; assert stock unchanged
 func TestCreateOrder_InsufficientStock(t *testing.T) {
+    ctx := context.Background()
     db := newTestDB(t)
     seedProduct(t, db, "sku1", 2)
     seedUser(t, db, "u1")
@@ -343,6 +345,8 @@ test('login form works', () => {
 
 ```tsx
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
+import { apiClient } from '../apiClient'; // project-specific API client
+import { AuthError } from '../errors';
 
 jest.mock('../apiClient');
 
@@ -386,7 +390,7 @@ test('calls onSuccess with token on valid credentials', async () => {
 test('shows error message on 401 and does not call onSuccess', async () => {
   mockLogin.mockRejectedValue(new AuthError('Invalid credentials'));
   const onSuccess = jest.fn();
-  const { getByPlaceholderText, getByText } = render(
+  const { getByPlaceholderText, getByText, queryByText } = render(
     <LoginForm onSuccess={onSuccess} />
   );
 
@@ -395,7 +399,7 @@ test('shows error message on 401 and does not call onSuccess', async () => {
   fireEvent.press(getByText('Login'));
 
   await waitFor(() => {
-    expect(getByText('Invalid credentials')).toBeTruthy();  // error UI 出現
+    expect(queryByText('Invalid credentials')).not.toBeNull();  // error UI 出現
   });
   expect(onSuccess).not.toHaveBeenCalled();  // 關鍵：成功 callback 沒被呼叫
 });

@@ -28,7 +28,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-## [1.0.0] - 2026-04-XX (initial structured release)
+## [1.0.0] - 2026-05-01 (initial structured release)
 
 ### Added
 - Two-tier hot-path / reference model (AGENT.md + 5 reference files)

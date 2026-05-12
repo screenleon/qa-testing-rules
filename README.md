@@ -20,6 +20,7 @@ LLM agent 在沒有明確指引時預設產出「**happy-path-only**」測試—
 | [`TEST-CATEGORIES.md`](./TEST-CATEGORIES.md) | 卡在某類 category 的具體子案例時 |
 | [`ANTI-PATTERNS.md`](./ANTI-PATTERNS.md) | Review / 看到 smell 想確認是不是 anti-pattern 時 |
 | [`EXAMPLES.md`](./EXAMPLES.md) | 需要好 vs 壞 code 對照時 |
+| [`CHEATSHEET.md`](./CHEATSHEET.md) | 快速回顧 layer 選擇、12 類別、anti-pattern index 時 |
 
 ## 使用方式（給 agent）
 
@@ -48,11 +49,11 @@ qa-testing-rules 遵循 [Semantic Versioning](https://semver.org/)：
 - **MINOR**：新增類別、範例、Anti-pattern，或擴展現有規則（向後相容）
 - **PATCH**：文字修正、格式改善、不影響規則語意的改動
 
-其他 repo 應 pin release tag 或 commit SHA，而非 `main` branch：
+其他 repo 應 pin release tag 或 commit SHA，而非 `main` branch。把 `vX.Y.Z` 換成實際存在的 release tag：
 ```md
 ## Testing rules
 When writing or reviewing tests, read:
-https://github.com/screenleon/qa-testing-rules/blob/v1.1.0/AGENT.md
+https://github.com/screenleon/qa-testing-rules/blob/vX.Y.Z/AGENT.md
 Only consult the deeper reference files when AGENT.md explicitly points you there.
 ```
 

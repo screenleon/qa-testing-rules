@@ -8,6 +8,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-05-12
+
 ### Added
 - `EXAMPLES.md`: Example 4 (Go integration test with testcontainers-go / pgx)
 - `EXAMPLES.md`: Example 5 (React Native / TypeScript component test with `waitFor`)
@@ -22,6 +26,11 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `TEST-STRATEGY.md`: §1.3 Consumer-Driven Contract Testing (Pact pattern)
 - `README.md`: Versioning section with semver policy and pin instructions
 - `CHANGELOG.md`: This file
+
+### Fixed
+- `ANTI-PATTERNS.md`: Corrected title from "15 種" to "17 種" after adding #16 and #17
+- `README.md`: Added `git diff --check main` as concrete release validation command
+- `README.md`: Added `CHEATSHEET.md` to reference table; replaced version tag placeholder
 
 ### Changed
 - Nothing breaking in this batch.

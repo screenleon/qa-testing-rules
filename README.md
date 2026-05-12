@@ -59,7 +59,7 @@ Only consult the deeper reference files when AGENT.md explicitly points you ther
 
 ### Release 流程
 
-1. 完成 changes 並確認 `main` 測試通過
+1. 完成 changes 並執行驗證（此 repo 為純文件，執行 `git diff --check main` 確認無空白錯誤；未來若加入 lint/test 工具請在此補充指令）
 2. 更新 `CHANGELOG.md`（移動 `[Unreleased]` → `[vX.Y.Z]` + 加日期）
 3. `git tag vX.Y.Z && git push origin vX.Y.Z`
 

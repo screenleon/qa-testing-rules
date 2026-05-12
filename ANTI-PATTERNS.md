@@ -1,4 +1,4 @@
-# Anti-Patterns — 15 種測試反模式
+# Anti-Patterns — 17 種測試反模式
 
 > 每條：**症狀 → why bad → fix**。寫完測試 / review 別人測試時 grep 對照。
 

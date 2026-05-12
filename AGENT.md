@@ -27,6 +27,18 @@
 
 預設立場：unit 與 integration 都能驗時，**選 integration**。深入細節 → `TEST-STRATEGY.md`。
 
+### SUT 類型速查（常見但不明顯的分層）
+
+| SUT 類型 | 推薦層 | 理由 |
+|---|---|---|
+| GraphQL resolver | Integration | resolver 的語意取決於 DB / dataloader 互動 |
+| gRPC service | Integration | 用 testserver / bufconn 驗 proto contract |
+| message queue consumer | Integration + Contract | in-process broker / testcontainers；contract 驗 payload schema |
+| background job / cron | Unit（純邏輯）+ Integration（副作用）| scheduler 呼叫→unit；job 內部 DB write→integration |
+| HTTP middleware | Integration | middleware 依賴 request/response 物件語意，用 httptest |
+| Repository / DAO | Integration | 不 mock DB，直接對真實 DB 跑 |
+| Pure function / transformer | Unit | 無 IO，快、確定性高 |
+
 ### Step 2 — 枚舉測試類別（在寫第一行測試前）
 
 對著下列 12 類，**每一類**回答「適用 / N/A」+ 具體案例。明確寫 N/A 比沉默忽略好。
@@ -68,6 +80,33 @@ Layer: integration（與 DB + 金流 client 互動）
 | 11 | Contract         | Y     | OrderPlaced event schema 對 inventory 相容      |
 | 12 | Backward compat  | N/A   | 新功能無歷史資料                                |
 ```
+
+### 時間不夠時的 Risk-based priority
+
+完整 12 類是目標；時間受限時，先依 SUT 的**風險暴露**排序：
+
+**任何 SUT 先覆蓋：** #4 Error paths（依賴失敗是最常見生產 bug）、#7 Side effects（不該發生的真的沒發生）、#9 Security（有 authn/authz 邊界時）。
+
+**高風險 SUT 追加：** 有 DB write / 金流 / 狀態機時，加 #5 State transitions 與 #6 Concurrency。
+
+**有餘力再加：** #2 Boundary、#10 Perf/scale、#12 Backward compat。
+
+**絕對不能以「時間不夠」省掉：** #4 + #7 + #9（有安全邊界時）。
+
+### N/A 品質門
+
+以下類別寫 N/A **必須附上具體理由**；若理由是「想不到」，不是合理 N/A：
+
+**never N/A without a concrete reason：** #2 Boundary、#4 Error paths、#7 Side effects、#9 Security。
+
+| Category | 合理 N/A（舉例）| 不合理理由 |
+|---|---|---|
+| #2 Boundary | 純 boolean flag，沒有數量維度 | 「沒想到」/「API 不對外」|
+| #4 Error paths | pure function 且沒有 IO | 「試了不知道怎麼造成錯誤」|
+| #7 Side effects | query-only，無 DB write / event / outbound HTTP | 「副作用應該沒問題吧」|
+| #9 Security | 無 authn/authz 邊界且不接受外部 input | 「已有其他層保護」|
+
+**永遠不能 N/A：** #1 Happy path。沒有 happy path 就沒有測試基線。
 
 ### Step 3 — 寫每條測試
 

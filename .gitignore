@@ -4,3 +4,9 @@
 *.swp
 *.swo
 node_modules/
+
+# Claude agent / codex output — not for VCS or Docker
+.codex-briefs/
+.gate-results/
+.agent-trace/
+.agents/

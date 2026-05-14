@@ -1,169 +1,169 @@
-# Test Categories — 12 類枚舉清單 + 選用 privacy 補充
+# Test Categories — 12-category enumeration checklist + optional privacy supplement
 
-> `AGENT.md` 已含一行版的 12 類速查表。本檔是**深度版**，當某類你不知道該測什麼具體案例時讀對應段；§13 是 telemetry SUT 的選用補充。
+> `AGENT.md` already includes a one-line quick reference for the 12 categories. This file is the **deep version**; read the corresponding section when you do not know what concrete cases to test for a category. §13 is an optional supplement for telemetry SUTs.
 >
-> 預設立場：除非你能說「這類不適用因為 ___」，否則**就要寫**。「想不到」不是 N/A 的理由。
+> Default stance: unless you can say "this category is not applicable because ___", **you must write it**. "Could not think of one" is not a valid N/A reason.
 
 ---
 
 ## 1. Happy path
-最常見、最典型的成功輸入產生預期輸出。
-**陷阱：** agent 的預設只有這一類。如果你的測試**只有**這一類，停下重讀本文件。
+The most common, most typical successful input produces the expected output.
+**Trap:** the agent's default is only this category. If your tests contain **only** this category, stop and reread this file.
 
 ## 2. Boundary values
 
-任何「數量」或「範圍」附近的值。**任何 `<`、`<=`、`>`、`>=`、`length`、`count` 出現的地方至少測 3 點（剛內 / 剛邊上 / 剛外）。**
+Any value near a "quantity" or "range". **Anywhere `<`, `<=`, `>`, `>=`, `length`, or `count` appears, test at least 3 points (just inside / exactly on boundary / just outside).**
 
-| 維度 | 邊界 |
+| Dimension | Boundaries |
 |---|---|
-| 數值 | `0`、`-1`、`1`、`MAX`、`MIN`、`MAX+1`、`MIN-1`、浮點精度 |
-| 集合 | `[]`、`[單一]`、極大、剛好 limit、limit+1 |
-| 字串 | `""`、單字元、Unicode（emoji / CJK / 組合字元 é vs e+◌́）、超長 |
-| 時間 | epoch、1970、2038、跨日 / 月 / 年、DST 切換、leap year（2/29）、leap second |
-| 分頁 | 第一頁、最後頁（剛滿 / 不滿）、超出範圍 |
+| Numeric | `0`, `-1`, `1`, `MAX`, `MIN`, `MAX+1`, `MIN-1`, floating-point precision |
+| Collection | `[]`, `[single]`, very large, exactly limit, limit+1 |
+| String | `""`, single character, Unicode (emoji / CJK / combining character é vs e+◌́), very long |
+| Time | epoch, 1970, 2038, across day / month / year, DST transition, leap year (2/29), leap second |
+| Pagination | first page, last page (exactly full / not full), out of range |
 
 ## 3. Negative inputs
 
-呼叫者「不應該傳但**可能會傳**」的：
+Things callers "should not pass but **might pass**":
 
-- `null`、`undefined`
-- 錯型別（給 string 收到 number）
-- Format 錯誤（malformed JSON、無效 email、非 UTF-8）
-- Injection 字符（SQL 引號、shell metachar、HTML script、路徑 `..`）
-- 型別正確但語意無效（負年齡、未來生日、空字串名字）
+- `null`, `undefined`
+- Wrong type (string provided where number is expected)
+- Format errors (malformed JSON, invalid email, non-UTF-8)
+- Injection characters (SQL quotes, shell metachar, HTML script, path `..`)
+- Type is correct but semantics are invalid (negative age, future birthday, empty string name)
 
-判斷 SUT 該如何處理（throw / return error / return null）→ **規格必須明確**，測試在固化規格。
+Decide how the SUT should handle it (throw / return error / return null) -> **the spec must be explicit**; tests solidify the spec.
 
 ## 4. Error paths
 
-當依賴 / 環境壞掉時 SUT 應該怎麼表現？
+How should the SUT behave when dependencies / environment break?
 
-- 外部服務 timeout / 5xx / 連線拒絕
-- DB connection 斷 / transaction rollback
-- 磁碟滿、權限不足、檔案不存在
-- Auth token 過期 / 無效 / 缺
-- 上游回傳 malformed payload
+- External service timeout / 5xx / connection refused
+- DB connection broken / transaction rollback
+- Disk full, insufficient permission, file does not exist
+- Auth token expired / invalid / missing
+- Upstream returns malformed payload
 
-**重點**：不是只測「會 throw」，要測：
-1. **throw 的是什麼**（具體 error type / message / code）
-2. **沒做什麼**（沒寫 DB、沒發信、沒扣款）
+**Key point**: do not only test "it throws"; test:
+1. **what is thrown** (concrete error type / message / code)
+2. **what was not done** (did not write DB, did not send email, did not charge money)
 
 ## 5. State transitions
 
-如果 SUT 是有狀態的（state machine、訂單流程、會話、多步驟表單）：
+If the SUT is stateful (state machine, order flow, session, multi-step form):
 
-- 列出所有合法狀態 → 列出所有合法轉換 → 每個一條測試
-- 列出所有**非法**轉換 → 每個一條測試（應被拒絕，**且狀態不變**）
-- Idempotency：同動作重複呼叫，結果應一致還是失敗？規格說了算
+- List all valid states -> list all valid transitions -> one test per transition
+- List all **invalid** transitions -> one test per transition (should be rejected, **and state remains unchanged**)
+- Idempotency: when the same action is called repeatedly, should the result be consistent or should it fail? The spec decides
 
 ## 6. Concurrency / race conditions
 
-- 雙擊 submit（同筆訂單建立兩次？）
-- 同時編輯（last-write-wins？optimistic locking 衝突回 409？）
-- 庫存扣減競態（最後一件被兩人同時下單）
+- Double-click submit (is the same order created twice?)
+- Simultaneous edits (last-write-wins? optimistic locking conflict returns 409?)
+- Stock deduction race (last item ordered by two people at the same time)
 - Cache stampede / thundering herd
-- 訊息重送（at-least-once delivery 下，consumer 是否 idempotent？）
+- Message redelivery (under at-least-once delivery, is the consumer idempotent?)
 
-**做法：** 不靠 `sleep` 製造並行，用 deterministic 工具（barrier / latch / controlled scheduler）。
+**Approach:** do not use `sleep` to create concurrency; use deterministic tools (barrier / latch / controlled scheduler).
 
 ## 7. Side effects
 
-對外可觀察的影響，必須驗證**該發生的有發生、不該發生的真的沒發生**。
+Externally observable effects must verify **what should happen happens, and what should not happen really does not happen**.
 
-- DB writes：對的 row 改了對的欄位
-- HTTP outbound：對的 URL、payload、header（特別是 auth）
-- Events：被 emit 到對的 topic / 帶對的 schema
-- Files：建立 / 刪除 / 權限 / 內容
-- Logs / metrics：關鍵事件有被記錄
+- DB writes: the correct row changed the correct columns
+- HTTP outbound: correct URL, payload, header (especially auth)
+- Events: emitted to the correct topic / with the correct schema
+- Files: create / delete / permissions / contents
+- Logs / metrics: critical events are recorded
 
-**反例情境也要測：** 「驗證失敗時，**不應該**寫 DB」→ 明確 assert DB 沒被動到。
+**Also test counterexample scenarios:** "when validation fails, DB **should not** be written" -> explicitly assert DB was not touched.
 
 ## 8. Resource lifecycle
 
-- 開啟的連線、檔案、handle 是否被關閉？
-- **即使中途 throw 了，cleanup 是否仍執行？**（finally / using / defer）
-- 長期執行下是否漏 memory / 漏 file descriptor？
+- Are opened connections, files, and handles closed?
+- **Even when a throw happens midway, does cleanup still run?** (finally / using / defer)
+- Under long-running execution, is there any memory leak / file descriptor leak?
 
 ## 9. Security
 
-- **Authn**：未登入、登入無效、過期 token
-- **Authz**：登入但角色不對、**跨 tenant 存取**（user A 試圖讀 user B 的資源）、垂直權限提升
-- **Input validation**：SQL / NoSQL / command / LDAP / XML / template injection
-- **Output encoding**：XSS、open redirect、SSRF
-- **Rate limiting / abuse**：暴力嘗試、enumeration（不同帳號錯誤訊息相同？）
-- **資料外洩**：error message 是否吐 stack trace / SQL / internal hostname
+- **Authn**: unauthenticated, invalid login, expired token
+- **Authz**: logged in but wrong role, **cross-tenant access** (user A tries to read user B's resource), vertical privilege escalation
+- **Input validation**: SQL / NoSQL / command / LDAP / XML / template injection
+- **Output encoding**: XSS, open redirect, SSRF
+- **Rate limiting / abuse**: brute force attempts, enumeration (are error messages the same for different accounts?)
+- **Data leakage**: does the error message expose stack trace / SQL / internal hostname
 
-**至少：** 任何讀寫資源的 endpoint 都要有「跨 tenant 拒絕」測試。
+**At minimum:** any endpoint that reads or writes resources must have a "cross-tenant rejection" test.
 
-**補充 OWASP Top 10 高頻項目：**
+**Supplement: high-frequency OWASP Top 10 items:**
 
-| 類型 | 測試點 |
+| Type | Test points |
 |---|---|
-| **CSRF** | 改變狀態的 endpoint 是否驗 CSRF token / SameSite cookie？跨 origin 請求是否被拒？|
-| **CORS** | 非信任 origin 的 preflight / simple request 是否回 403 或不含 `Access-Control-Allow-Origin`？|
-| **IDOR / BOLA** | `GET /orders/{id}` 用 user B 的 token 讀 user A 的 resource，是否回 403 / 404 而非 200？路徑參數 / query param 的 ownership check 都要覆蓋。|
-| **Security headers** | `X-Frame-Options`, `Content-Security-Policy`, `X-Content-Type-Options`, `Referrer-Policy` 是否存在且設定正確？|
-| **Path traversal** | filename / path 參數傳入 `../../etc/passwd`、`%2F..%2F` 是否被拒或清洗？這是 path traversal 的黑盒測試。|
-| **File upload** | MIME type 驗證（不只靠 extension）；上傳後不可直接執行；儲存路徑不可使用 user-supplied filename；size limit 有 server-side 強制。|
-| **Mass assignment** | PATCH / PUT body 是否能讓 user 修改 `role` / `is_admin` 等不應開放的欄位？|
+| **CSRF** | Does a state-changing endpoint verify CSRF token / SameSite cookie? Are cross-origin requests rejected? |
+| **CORS** | Does an untrusted origin's preflight / simple request return 403 or omit `Access-Control-Allow-Origin`? |
+| **IDOR / BOLA** | For `GET /orders/{id}`, when using user B's token to read user A's resource, does it return 403 / 404 instead of 200? Cover ownership checks for path params / query params. |
+| **Security headers** | Are `X-Frame-Options`, `Content-Security-Policy`, `X-Content-Type-Options`, and `Referrer-Policy` present and configured correctly? |
+| **Path traversal** | When filename / path params receive `../../etc/passwd` or `%2F..%2F`, are they rejected or sanitized? This is a black-box path traversal test. |
+| **File upload** | MIME type validation (not only extension); uploaded files cannot be executed directly; storage path must not use user-supplied filename; size limit is enforced server-side. |
+| **Mass assignment** | Can PATCH / PUT body let a user modify fields that should not be open, such as `role` / `is_admin`? |
 
-測試原則：每個 OWASP 項目的測試都應是 **黑盒**——給特定 input，驗 HTTP 狀態 + 不該被返回的資料真的沒有出現。
+Testing principle: every OWASP-item test should be **black-box** — provide specific input, then verify HTTP status + data that should not be returned really does not appear.
 
-## 10. Performance / scale 邊界
+## 10. Performance / scale boundaries
 
-不是 benchmark，是**規格邊界**：
-- `n=0` 不爆炸
-- `n=1` 不退化（特殊路徑常出 bug）
-- `n=large` 仍在合約內（不是 O(n²) 卻宣稱 O(n)）
-- 超過 limit 時優雅拒絕還是 OOM？
+This is not benchmark; it is a **spec boundary**:
+- `n=0` does not explode
+- `n=1` does not regress (special paths often contain bugs)
+- `n=large` remains within contract (not O(n²) while claiming O(n))
+- When exceeding limit, does it reject gracefully or OOM?
 
 ## 11. Contract / interface compatibility
 
-當 SUT 跨**團隊 / 服務 / 套件**邊界時：
+When the SUT crosses **team / service / package** boundaries:
 
-- **API schema**：request / response 欄位、型別、必填性符合 consumer 期待（OpenAPI / JSON Schema 驗證）
-- **Event payload**：發布到 message bus 的 event 對所有 consumer 仍可解析
-- **Webhook delivery**：對外送出的 payload 對接收方仍滿足 contract
-- **公開套件 API**：function signature、type export 與 semver 承諾一致
+- **API schema**: request / response fields, types, and requiredness match consumer expectations (OpenAPI / JSON Schema validation)
+- **Event payload**: events published to the message bus remain parseable by all consumers
+- **Webhook delivery**: outbound payloads still satisfy the receiver's contract
+- **Public package API**: function signature, type export, and semver promises are consistent
 
-**要做：** Contract 版本化（v1/v2）、provider 發布前驗相容、consumer 對**期待 contract** 寫測試。
-**不要：** 把 contract test 跟 integration test 混為一談——contract test 不關心 SUT 內部行為，只關心邊界協議。
+**Do:** version contracts (v1/v2), verify provider compatibility before release, have consumers write tests against the **expected contract**.
+**Do not:** conflate contract tests with integration tests — contract tests do not care about SUT internals, only boundary protocols.
 
-詳見 `TEST-STRATEGY.md` §1.3。
+See `TEST-STRATEGY.md` §1.3.
 
 ## 12. Backward compatibility / migration
 
-如果 SUT 處理「過去寫入的資料」或「舊 client 的請求」：
+If the SUT handles "data written in the past" or "requests from old clients":
 
-- 舊版 schema 的 row 仍能被讀取
-- 缺少新欄位有合理 default
-- API 新版本對舊 client 仍相容（或刻意不相容並回對的 error）
-- Migration script 跑兩次無害（idempotent）
+- Rows from the old schema can still be read
+- Missing new fields have reasonable defaults
+- New API versions remain compatible with old clients (or are intentionally incompatible and return the correct error)
+- Migration script can run twice harmlessly (idempotent)
 
-## 13. Privacy / Telemetry Leakage（選用）
+## 13. Privacy / Telemetry Leakage (optional)
 
-> 適用：任何有 structured logging / distributed tracing / metrics / error reporting 的系統。
-> 不適用於完全無 telemetry 的 SUT（明確 N/A + 理由）。
+> Applicable: any system with structured logging / distributed tracing / metrics / error reporting.
+> Not applicable to SUTs with no telemetry at all (explicit N/A + reason).
 
-現代可觀察性工具（Datadog / Sentry / OpenTelemetry）很容易在 log 或 trace 中洩漏 PII，而這類問題通常在 production 才被發現。
+Modern observability tools (Datadog / Sentry / OpenTelemetry) can easily leak PII in logs or traces, and these problems are usually discovered only in production.
 
-**測試點：**
+**Test points:**
 
-| 場景 | 驗什麼 |
+| Scenario | What to verify |
 |---|---|
-| 正常請求 | Log 結構中不含 password / token / credit card / SSN / DOB 等敏感值 |
-| 錯誤回應 body | 不包含 SQL query、stack trace、internal hostname、file path |
-| Auth error | 401/403 body 不吐 `"user not found"` vs `"password wrong"`（enumeration 防護）|
-| Distributed trace span | span attributes 不帶 PII；tag key 有 allow-list |
-| Metrics labels | 不使用 user ID / email 作為 metric label（cardinality + PII 雙重問題）|
-| Error reporting（Sentry 等）| breadcrumbs / extra 不含 session token / request body 原文 |
+| Normal request | Log structure does not contain sensitive values such as password / token / credit card / SSN / DOB |
+| Error response body | Does not include SQL query, stack trace, internal hostname, file path |
+| Auth error | 401/403 body does not expose `"user not found"` vs `"password wrong"` (enumeration protection) |
+| Distributed trace span | span attributes do not carry PII; tag keys have an allow-list |
+| Metrics labels | Do not use user ID / email as metric label (cardinality + PII double problem) |
+| Error reporting (Sentry etc.) | breadcrumbs / extra do not contain session token / raw request body |
 
-**測試方式：**
-1. Capture log output（stdout / structured log）in the test and assert it does NOT contain known PII fields
+**Testing approach:**
+1. Capture log output (stdout / structured log) in the test and assert it does NOT contain known PII fields
 2. Call error endpoints and assert `response.body` does not contain known internal strings
 3. If using OpenTelemetry SDK, set a test exporter and assert span attributes against an allowlist
 
-**示範（Go）：**
+**Example (Go):**
 ```go
 func TestCreateUser_LogDoesNotLeakPassword(t *testing.T) {
     var buf bytes.Buffer
@@ -183,25 +183,25 @@ func TestCreateUser_LogDoesNotLeakPassword(t *testing.T) {
 
 ---
 
-## 矩陣輸出格式
+## Matrix Output Format
 
-寫測試前產出，附在測試檔頂端或交付訊息中：
+Produce this before writing tests; attach it at the top of the test file or in the delivery message:
 
 ```
 SUT: createOrder(userId, items, paymentMethod)
-Layer: integration（與 DB + 金流 client 互動）
+Layer: integration (interacts with DB + payment client)
 
 | #  | Category         | Apply | Cases                                           |
-| 1  | Happy path       | Y     | 1 item / 多 item                                |
-| 2  | Boundary         | Y     | 0 items（拒絕）、單品超過庫存上限              |
-| 3  | Negative inputs  | Y     | 不存在的 userId、空 items、不存在的 SKU         |
-| 4  | Error paths      | Y     | 金流 timeout、金流拒絕、DB tx failure           |
-| 5  | State            | Y     | 對 cancelled cart 下單應拒絕                    |
-| 6  | Concurrency      | Y     | 雙擊；庫存最後一件被兩人搶                      |
-| 7  | Side effects     | Y     | 成功：DB+stock-1+event；失敗：皆無              |
-| 8  | Resource         | N/A   | 由連線池統一管                                  |
-| 9  | Security         | Y     | 跨 user 用別人的 cart                           |
+| 1  | Happy path       | Y     | 1 item / multiple items                         |
+| 2  | Boundary         | Y     | 0 items (reject), single item exceeds stock cap |
+| 3  | Negative inputs  | Y     | nonexistent userId, empty items, nonexistent SKU |
+| 4  | Error paths      | Y     | payment timeout, payment rejection, DB tx failure |
+| 5  | State            | Y     | placing order on cancelled cart should reject   |
+| 6  | Concurrency      | Y     | double-click; last stock item grabbed by two people |
+| 7  | Side effects     | Y     | success: DB+stock-1+event; failure: none        |
+| 8  | Resource         | N/A   | managed uniformly by connection pool            |
+| 9  | Security         | Y     | cross-user access to someone else's cart        |
 | 10 | Perf             | Y     | items.length=0/1/1000                           |
-| 11 | Contract         | Y     | OrderPlaced event schema 對 inventory 相容      |
-| 12 | Backward compat  | N/A   | 新功能無歷史資料                                |
+| 11 | Contract         | Y     | OrderPlaced event schema compatible with inventory |
+| 12 | Backward compat  | N/A   | new feature has no historical data              |
 ```

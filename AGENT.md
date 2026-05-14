@@ -1,206 +1,206 @@
-# AGENT.md — agent hot-path 規則
+# AGENT.md — agent hot-path rules
 
-> **這份是 agent 唯一必讀的入口。** 載入這一份就能寫出 70% 達標的測試。其餘檔案是 reference，**有需要時才讀**。
-
----
-
-## 0. 三條紅線（違反任一條，這次提交就是失敗）
-
-1. **不要寫一條你不確定會在實作壞掉時 fail 的測試。** 寧願不寫。
-2. **不要 mock SUT 自己的邏輯。** Mock 只能止於外部邊界（DB / network / time / filesystem / 第三方 SDK）。
-3. **不要靠 `sleep(N)` 等待 async 結果。** 用 deterministic event / fake clock / await。
+> **This is the agent's only required entry point.** Loading this file is enough to write tests that are 70% compliant. The other files are references; **read them only when needed**.
 
 ---
 
-## 1. 工作流（每個測試任務都跑一遍）
+## 0. Three Red Lines (violating any one means this submission has failed)
 
-### Step 1 — 選測試層級
+1. **Do not write a test unless you are sure it will fail when the implementation breaks.** Better not to write it.
+2. **Do not mock the SUT's own logic.** Mocking must stop at external boundaries (DB / network / time / filesystem / third-party SDK).
+3. **Do not rely on `sleep(N)` to wait for async results.** Use deterministic event / fake clock / await.
 
-對著 SUT 問：
+---
 
-| 條件 | 用哪層 |
+## 1. Workflow (run this for every test task)
+
+### Step 1 — Choose the test layer
+
+Ask the SUT:
+
+| Condition | Which layer |
 |---|---|
-| 純邏輯、無 IO | **Unit** |
-| 與自己擁有的基礎設施互動（DB、queue、cache、HTTP handler） | **Integration**（首選） |
-| 跨服務 / 跨團隊邊界 | **Contract** |
-| 關鍵商業流程的端到端煙霧 | **E2E**（少量） |
+| Pure logic, no IO | **Unit** |
+| Interacts with infrastructure you own (DB, queue, cache, HTTP handler) | **Integration** (preferred) |
+| Cross-service / cross-team boundary | **Contract** |
+| End-to-end smoke for critical business flows | **E2E** (small number) |
 
-預設立場：unit 與 integration 都能驗時，**選 integration**。深入細節 → `TEST-STRATEGY.md`。
+Default stance: when both unit and integration can verify it, **choose integration**. Deeper details → `TEST-STRATEGY.md`.
 
-### SUT 類型速查（常見但不明顯的分層）
+### SUT Type Quick Reference (common but non-obvious layering)
 
-| SUT 類型 | 推薦層 | 理由 |
+| SUT Type | Recommended Layer | Reason |
 |---|---|---|
-| GraphQL resolver | Integration | resolver 的語意取決於 DB / dataloader 互動 |
-| gRPC service | Integration | 用 testserver / bufconn 驗 proto contract |
-| message queue consumer | Integration + Contract | in-process broker / testcontainers；contract 驗 payload schema |
-| background job / cron | Unit（純邏輯）+ Integration（副作用）| scheduler 呼叫→unit；job 內部 DB write→integration |
-| HTTP middleware | Integration | middleware 依賴 request/response 物件語意，用 httptest |
-| Repository / DAO | Integration | 不 mock DB，直接對真實 DB 跑 |
-| Pure function / transformer | Unit | 無 IO，快、確定性高 |
+| GraphQL resolver | Integration | resolver semantics depend on DB / dataloader interaction |
+| gRPC service | Integration | verify the proto contract with testserver / bufconn |
+| message queue consumer | Integration + Contract | in-process broker / testcontainers; contract verifies payload schema |
+| background job / cron | Unit (pure logic) + Integration (side effects) | scheduler call -> unit; DB write inside job -> integration |
+| HTTP middleware | Integration | middleware depends on request/response object semantics; use httptest |
+| Repository / DAO | Integration | do not mock DB; run directly against a real DB |
+| Pure function / transformer | Unit | no IO, fast, highly deterministic |
 
-### Step 2 — 枚舉測試類別（在寫第一行測試前）
+### Step 2 — Enumerate test categories (before writing the first line of test code)
 
-對著下列 12 類，**每一類**回答「適用 / N/A」+ 具體案例。明確寫 N/A 比沉默忽略好。
+For each of the following 12 categories, answer **each one** with "Applicable / N/A" + concrete cases. Explicit N/A is better than silent omission.
 
-| # | Category | 提示 |
+| # | Category | Prompt |
 |---|---|---|
-| 1 | Happy path | 主要成功流程 |
-| 2 | Boundary | 任何 `<` `>` `length` `limit` 附近 → off-by-one 至少測 3 點（剛內 / 剛邊上 / 剛外）|
-| 3 | Negative inputs | null / undefined / 錯型別 / malformed / injection 字符 |
-| 4 | Error paths | dependency 失敗、timeout、權限不足；驗具體 error type + 「不該發生的 side effect 真的沒發生」|
-| 5 | State transitions | 合法轉換 ✓、非法轉換被拒絕且狀態不變、idempotency |
-| 6 | Concurrency | 雙擊、競爭資源、idempotent consumer、cache stampede |
-| 7 | Side effects | 該寫的 DB / event / HTTP 真的有寫；失敗時真的沒寫 |
-| 8 | Resource lifecycle | 連線 / 檔案 / handle 是否清乾淨（**含 throw 路徑**）|
-| 9 | Security | authn / authz 邊界、跨 tenant 拒絕、injection、error 不洩內部資訊 |
-| 10 | Perf / scale | n=0、n=1、n=large 仍合約內 |
-| 11 | Contract | 跨服務 schema / event payload / webhook 相容性、版本化 |
-| 12 | Backward compat | 舊資料能讀、舊 client 相容、migration 跑兩次無害 |
+| 1 | Happy path | Primary successful flow |
+| 2 | Boundary | Around any `<` `>` `length` `limit` -> test at least 3 off-by-one points (just inside / exactly on boundary / just outside) |
+| 3 | Negative inputs | null / undefined / wrong type / malformed / injection characters |
+| 4 | Error paths | dependency failure, timeout, insufficient permission; assert concrete error type + "the side effect that should not happen really did not happen" |
+| 5 | State transitions | valid transitions ✓, invalid transitions rejected and state unchanged, idempotency |
+| 6 | Concurrency | double-clicks, competing resources, idempotent consumer, cache stampede |
+| 7 | Side effects | DB / event / HTTP that should be written really was written; when failing, it really was not written |
+| 8 | Resource lifecycle | whether connections / files / handles are cleaned up (including throw paths) |
+| 9 | Security | authn / authz boundaries, cross-tenant rejection, injection, errors do not leak internal info |
+| 10 | Perf / scale | n=0, n=1, n=large still within contract |
+| 11 | Contract | cross-service schema / event payload / webhook compatibility, versioning |
+| 12 | Backward compat | old data can be read, old clients remain compatible, migration can run twice harmlessly |
 
-需要每類更詳細的子提示 → `TEST-CATEGORIES.md`。
+Need more detailed sub-prompts for each category → `TEST-CATEGORIES.md`.
 
-**輸出**：一份簡短的測試矩陣（範例）：
+**Output**: a brief test matrix (example):
 
 ```
 SUT: createOrder(userId, items, paymentMethod)
-Layer: integration（與 DB + 金流 client 互動）
+Layer: integration (interacts with DB + payment client)
 
 | #  | Category         | Apply | Cases                                           |
-| 1  | Happy path       | Y     | 1 item / 多 item                                |
-| 2  | Boundary         | Y     | 0 items（拒絕）、單品超過庫存上限              |
-| 3  | Negative inputs  | Y     | 不存在的 userId、空 items、不存在的 SKU         |
-| 4  | Error paths      | Y     | 金流 timeout、金流拒絕、DB tx failure           |
-| 5  | State            | Y     | 對 cancelled cart 下單應拒絕                    |
-| 6  | Concurrency      | Y     | 雙擊；庫存最後一件被兩人搶                      |
-| 7  | Side effects     | Y     | 成功：DB+stock-1+event；失敗：皆無              |
-| 8  | Resource         | N/A   | 由連線池統一管                                  |
-| 9  | Security         | Y     | 跨 user 用別人的 cart                           |
+| 1  | Happy path       | Y     | 1 item / multiple items                         |
+| 2  | Boundary         | Y     | 0 items (reject), single item exceeds stock cap |
+| 3  | Negative inputs  | Y     | nonexistent userId, empty items, nonexistent SKU |
+| 4  | Error paths      | Y     | payment timeout, payment rejection, DB tx failure |
+| 5  | State            | Y     | placing order on cancelled cart should reject   |
+| 6  | Concurrency      | Y     | double-click; last stock item grabbed by two people |
+| 7  | Side effects     | Y     | success: DB+stock-1+event; failure: none        |
+| 8  | Resource         | N/A   | managed uniformly by connection pool            |
+| 9  | Security         | Y     | cross-user access to someone else's cart        |
 | 10 | Perf             | Y     | items.length=0/1/1000                           |
-| 11 | Contract         | Y     | OrderPlaced event schema 對 inventory 相容      |
-| 12 | Backward compat  | N/A   | 新功能無歷史資料                                |
+| 11 | Contract         | Y     | OrderPlaced event schema compatible with inventory |
+| 12 | Backward compat  | N/A   | new feature has no historical data              |
 ```
 
-### 時間不夠時的 Risk-based priority
+### Risk-based priority when time is short
 
-完整 12 類是目標；時間受限時，先依 SUT 的**風險暴露**排序：
+The full 12 categories are the goal; when time is limited, prioritize by the SUT's **risk exposure**:
 
-**任何 SUT 先覆蓋：** #4 Error paths（依賴失敗是最常見生產 bug）、#7 Side effects（不該發生的真的沒發生）、#9 Security（有 authn/authz 邊界時）。
+**Cover first for any SUT:** #4 Error paths (dependency failures are the most common production bugs), #7 Side effects (what should not happen really does not happen), #9 Security (when there are authn/authz boundaries).
 
-**高風險 SUT 追加：** 有 DB write / 金流 / 狀態機時，加 #5 State transitions 與 #6 Concurrency。
+**Add for high-risk SUTs:** when there is a DB write / payment flow / state machine, add #5 State transitions and #6 Concurrency.
 
-**有餘力再加：** #2 Boundary、#10 Perf/scale、#12 Backward compat。
+**Add if there is capacity:** #2 Boundary, #10 Perf/scale, #12 Backward compat.
 
-**絕對不能以「時間不夠」省掉：** #4 + #7 + #9（有安全邊界時）。
+**Never skip because "there is not enough time":** #4 + #7 + #9 (when there is a security boundary).
 
-### N/A 品質門
+### N/A Quality Gate
 
-以下類別寫 N/A **必須附上具體理由**；若理由是「想不到」，不是合理 N/A：
+The following categories **must include a concrete reason** when marked N/A; if the reason is "could not think of one", it is not a valid N/A:
 
-**never N/A without a concrete reason：** #2 Boundary、#4 Error paths、#7 Side effects、#9 Security。
+**never N/A without a concrete reason:** #2 Boundary, #4 Error paths, #7 Side effects, #9 Security.
 
-| Category | 合理 N/A（舉例）| 不合理理由 |
+| Category | Valid N/A (example) | Invalid reason |
 |---|---|---|
-| #2 Boundary | 純 boolean flag，沒有數量維度 | 「沒想到」/「API 不對外」|
-| #4 Error paths | pure function 且沒有 IO | 「試了不知道怎麼造成錯誤」|
-| #7 Side effects | query-only，無 DB write / event / outbound HTTP | 「副作用應該沒問題吧」|
-| #9 Security | 無 authn/authz 邊界且不接受外部 input | 「已有其他層保護」|
+| #2 Boundary | pure boolean flag, no quantity dimension | "did not think of one" / "API is not external" |
+| #4 Error paths | pure function and no IO | "tried but do not know how to cause an error" |
+| #7 Side effects | query-only, no DB write / event / outbound HTTP | "side effects should be fine, right?" |
+| #9 Security | no authn/authz boundary and does not accept external input | "another layer already protects it" |
 
-**永遠不能 N/A：** #1 Happy path。沒有 happy path 就沒有測試基線。
+**Never N/A:** #1 Happy path. Without a happy path, there is no test baseline.
 
-### Step 3 — 寫每條測試
+### Step 3 — Write each test
 
-每條測試**必須**有：
+Each test **must** have:
 
-1. **行為敘述式函式名**：`returns 401 when token is expired`，不是 `test1`
-2. **結構化 docstring**：
+1. **Behavior-descriptive function name**: `returns 401 when token is expired`, not `test1`
+2. **Structured docstring**:
 
    ```
-   <一句話：在驗什麼行為>
+   <one sentence: what behavior is being verified>
    Steps:
-   1. <準備>
-   2. <觸發>
-   3. <驗證>
+   1. <prepare>
+   2. <trigger>
+   3. <verify>
    ```
 
-3. **AAA 三段視覺可分**（Arrange / Act / Assert）
-4. **具體 assertion**：用 `toBe(具體值)` / `toEqual({...})`，**不**用 `toBeTruthy` / `toBeDefined` 當主斷言
-5. **Error 路徑**斷言具體 error type + 該 side effect 真的沒發生
+3. **AAA visually separated into three parts** (Arrange / Act / Assert)
+4. **Concrete assertion**: use `toBe(specific value)` / `toEqual({...})`, **not** `toBeTruthy` / `toBeDefined` as the main assertion
+5. **Error path** asserts concrete error type + that the side effect really did not happen
 
-**一個 test function 一個 scenario。** 不要 table-driven 把多個獨立行為塞同一個 function（純函式 input/output 對照例外）。
+**One scenario per test function.** Do not use table-driven tests to stuff multiple independent behaviors into one function (except pure function input/output mappings).
 
-### Step 4 — Mutation 自我測試（在交付前）
+### Step 4 — Mutation self-test (before delivery)
 
-對每條核心測試**至少做一次**：
+For each core test, do **at least one**:
 
-- 把實作的某行註解掉 → 對應測試是否 fail？
-- 把比較運算子翻轉（`>` ↔ `<`）→ 是否 fail？
-- 把 throw 拿掉 → error path 測試是否 fail？
+- Comment out one line of the implementation -> does the corresponding test fail?
+- Flip a comparison operator (`>` ↔ `<`) -> does it fail?
+- Remove the throw -> does the error path test fail?
 
-**任一 mutation 沒讓測試 fail = 那條測試對該 mutation 沒保護力**，要補。
+**Any mutation that does not make the test fail = that test does not protect against that mutation**, so add coverage.
 
-### Step 5 — 交付前自查清單
+### Step 5 — Pre-delivery self-checklist
 
-- [ ] 每條測試有行為敘述式名 + 結構化 docstring
-- [ ] 每條測試單獨跑都通過（不依賴執行順序）
-- [ ] 沒有 `sleep` / `setTimeout` 用作同步機制
-- [ ] 沒有 `os.Chdir` / `process.chdir` / 改 global `process.env`（用 `t.Setenv` 等可還原機制）
-- [ ] 沒 mock SUT 自己的 helper / pure function（mock 止於外部邊界）
-- [ ] Error path 斷言具體 error type，不是 `toThrow()` 不指定類型
-- [ ] Side effect「不該發生時真的沒發生」也驗了
-- [ ] Assertion 用具體寫死的值，不是用實作公式算 expected
-- [ ] 對核心測試做過 mutation 自我測試
-- [ ] 連跑 3 次都綠
+- [ ] Every test has a behavior-descriptive name + structured docstring
+- [ ] Every test passes when run on its own (does not depend on execution order)
+- [ ] No `sleep` / `setTimeout` used as a synchronization mechanism
+- [ ] No `os.Chdir` / `process.chdir` / changing global `process.env` (use restorable mechanisms such as `t.Setenv`)
+- [ ] No mocking of the SUT's own helper / pure function (mocking stops at external boundaries)
+- [ ] Error path asserts concrete error type, not unspecified `toThrow()`
+- [ ] Also verified that side effects "really do not happen when they should not happen"
+- [ ] Assertions use concrete hard-coded values, not implementation formulas to compute expected values
+- [ ] Mutation self-test has been done for core tests
+- [ ] Green across 3 consecutive runs
 
-### Step 6 — 交付報告
+### Step 6 — Delivery report
 
-主動說：
-- 我選了 **層級**：unit / integration / contract / E2E + 理由
-- 我覆蓋了哪些 categories；哪些**刻意 N/A** + 原因
-- 我做了哪些 mutation self-test
-
----
-
-## 2. 任務變體
-
-### 2.1 為既有程式碼補測試
-
-額外規則：
-- **不要為了配合既有實作寫測試**，那是把 bug 當規格固化
-- 列出 SUT 所有分支（if / switch / try-catch / early return / async error path），每分支至少一條
-- 對 SUT 邏輯有疑問**先問人**，不要自行假設
-
-### 2.2 Bug 回歸測試
-
-1. **先寫一條會 fail 的測試重現 bug**（red）
-2. 修 SUT，看到綠
-3. 思考 bug 的「鄰居」：相同根因會不會在別的入口造成類似 bug？對鄰居也補
-4. 測試名 / docstring 引用 issue / commit
-
-### 2.3 Review 別人 / 其他 agent 寫的測試
-
-立場：**悲觀的審查者**。
-
-- ✗ 名字是 `test 1` / `should work` / 沒 docstring → 退件
-- ✗ 只有 happy path → 補 boundary / negative / error 三類
-- ✗ `toBeTruthy` 當主斷言 → 改具體值
-- ✗ Mock 蓋住 SUT 自己的邏輯 → 拆 mock
-- ✗ `sleep` / 共享可變 state / 依賴 cwd → 重寫
-- ✗ Table-driven 塞獨立 scenario → 拆成多個 function
-
-對每條測試**心算 mutation**：「把實作的 `>` 改成 `>=`，這條會 fail 嗎？」答不會就退件。
+Proactively state:
+- I chose the **layer**: unit / integration / contract / E2E + reason
+- Which categories I covered; which were **intentionally N/A** + reasons
+- Which mutation self-tests I performed
 
 ---
 
-## 3. 何時讀 reference 檔案
+## 2. Task Variants
 
-| 你正在做的事 | 讀 |
+### 2.1 Adding tests for existing code
+
+Additional rules:
+- **Do not write tests to accommodate the existing implementation**; that freezes a bug as a spec
+- List every SUT branch (if / switch / try-catch / early return / async error path), at least one test per branch
+- If the SUT logic is unclear, **ask a person first**; do not make assumptions yourself
+
+### 2.2 Bug regression test
+
+1. **First write a failing test that reproduces the bug** (red)
+2. Fix the SUT and see green
+3. Think about the bug's "neighbors": could the same root cause create a similar bug at another entry point? Add tests for those neighbors too
+4. Test name / docstring references the issue / commit
+
+### 2.3 Reviewing tests written by others / other agents
+
+Stance: **pessimistic reviewer**.
+
+- ✗ Name is `test 1` / `should work` / no docstring → reject
+- ✗ Only happy path → add boundary / negative / error categories
+- ✗ `toBeTruthy` as the main assertion → change to concrete value
+- ✗ Mock covers the SUT's own logic → move the mock to an external boundary
+- ✗ `sleep` / shared mutable state / cwd dependency → rewrite
+- ✗ Table-driven test stuffs independent scenarios → split into multiple functions
+
+For each test, **mentally run mutation**: "If the implementation's `>` is changed to `>=`, will this test fail?" If the answer is no, reject it.
+
+---
+
+## 3. When to Read Reference Files
+
+| What you are doing | Read |
 |---|---|
-| 不確定該用哪層測試 | `TEST-STRATEGY.md` §1–§2 |
-| 設計 CI / 環境政策 / coverage 門檻 / flakiness 政策 | `TEST-STRATEGY.md` §3–§7 |
-| 卡在某類 category 的具體子案例 | `TEST-CATEGORIES.md` 對應段 |
-| 看到測試裡某個 smell 想確認是 anti-pattern | `ANTI-PATTERNS.md` |
-| 需要好 vs 壞 code 對照 | `EXAMPLES.md` |
-| 想理解原則背後的 why | `PRINCIPLES.md` |
+| Unsure which test layer to use | `TEST-STRATEGY.md` §1–§2 |
+| Designing CI / environment policy / coverage threshold / flakiness policy | `TEST-STRATEGY.md` §3–§7 |
+| Stuck on concrete sub-cases for a category | the corresponding section in `TEST-CATEGORIES.md` |
+| See a smell in a test and want to confirm whether it is an anti-pattern | `ANTI-PATTERNS.md` |
+| Need good vs bad code comparisons | `EXAMPLES.md` |
+| Want to understand the why behind the principles | `PRINCIPLES.md` |
 
-**不需要的時候不要讀**——這份 AGENT.md 已涵蓋 80% 任務。
+**Do not read them when unnecessary** — this AGENT.md already covers 80% of tasks.

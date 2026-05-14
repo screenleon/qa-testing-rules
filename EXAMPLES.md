@@ -1,14 +1,14 @@
-# Examples — 壞 vs 好對照（精選 5 例）
+# Examples — Bad vs good comparisons (selected 5 examples)
 
-> ANTI-PATTERNS 已含每條反模式的小對照範例。本檔保留**最常出錯且最值得完整看一遍**的 5 個情境。
+> ANTI-PATTERNS already includes a small comparison example for each anti-pattern. This file keeps the 5 scenarios that are **most commonly done wrong and most worth reading in full**.
 
 ---
 
-## 範例 1：邊界 + Error path 都漏（最常見的「快樂測試」病灶）
+## Example 1: Boundary + Error path both missing (the most common "happy test" smell)
 
-**SUT：** `transferMoney(fromId, toId, amount)`，餘額不足時拒絕並**不可**動到任何帳戶。
+**SUT:** `transferMoney(fromId, toId, amount)`, rejects when balance is insufficient and **must not** touch any account.
 
-### 壞
+### Bad
 
 ```js
 test('transfer works', async () => {
@@ -21,12 +21,12 @@ test('rejects when balance insufficient', () => {
 });
 ```
 
-**問題：**
-- Happy 用 `toBeGreaterThan(0)`（可被任何垃圾通過）
-- Error 沒檢查具體 error type（將來改 throw `DBConnectionError` 也會通過、語意全錯）
-- 沒檢查最關鍵的 side effect：**A 帳戶有沒有被扣？B 帳戶有沒有被加？失敗時是否真的沒動？**
+**Problems:**
+- Happy uses `toBeGreaterThan(0)` (anything garbage can pass)
+- Error does not check concrete error type (if it later throws `DBConnectionError`, it still passes and the semantics are completely wrong)
+- Does not check the most critical side effect: **Was account A deducted? Was account B credited? When failing, did nothing really change?**
 
-### 好
+### Good
 
 ```js
 /**
@@ -59,48 +59,48 @@ test('rejects insufficient balance and leaves accounts untouched', async () => {
   await seedAccount({ id: 'b', balance: 0 });
 
   await expect(transferMoney('a', 'b', 9999))
-    .rejects.toThrow(InsufficientBalance);  // 具體 error type
+    .rejects.toThrow(InsufficientBalance);  // concrete error type
 
-  // 關鍵：side effect 沒發生
+  // Key: side effect did not happen
   expect(await getBalance('a')).toBe(100);
   expect(await getBalance('b')).toBe(0);
   expect(await listTransactionsFor('a')).toEqual([]);
 });
 ```
 
-**做了什麼：**
-- 具體寫死的 expected（`70`、`30`）而非「比 0 大」
-- Error 斷言**具體 error class**
-- 失敗路徑明確驗證「**不該發生的真的沒發生**」（兩帳戶餘額 + 無交易紀錄）
-- 結構化 docstring 讓 reviewer / agent 不讀實作就懂測試矩陣
+**What this does:**
+- Uses concrete, hard-coded expected values (`70`, `30`) instead of "greater than 0"
+- Error assertion uses a **concrete error class**
+- Failure path explicitly verifies "**what should not happen really did not happen**" (both account balances + no transaction record)
+- Structured docstring lets reviewer / agent understand the test matrix without reading the implementation
 
 ---
 
-## 範例 2：Async — sleep 的代價
+## Example 2: Async — the cost of sleep
 
-**SUT：** `enqueueEmail()` 把工作丟進 queue，worker 處理後寫入 `sent_emails` 表。
+**SUT:** `enqueueEmail()` puts work into a queue, and the worker writes to the `sent_emails` table after processing.
 
-### 壞
+### Bad
 
 ```js
 test('email gets sent', async () => {
   await enqueueEmail({ to: 'a@b.c' });
-  await sleep(2000);  // 等 worker 跑完
+  await sleep(2000);  // wait for worker to finish
   const sent = await db.query('SELECT * FROM sent_emails');
   expect(sent.length).toBe(1);
 });
 ```
 
-**問題：** 慢機 2 秒不夠 → CI flaky；快機 2 秒太多 → 套件變慢；中間 worker crash 也只看到「沒發生」，不知為何。
+**Problems:** 2 seconds is not enough on slow machines -> CI flaky; 2 seconds is too much on fast machines -> suite gets slower; if the worker crashes in the middle, you only see "it did not happen" and not why.
 
-### 好（方案 A：deterministic 觸發）
+### Good (Option A: deterministic trigger)
 
 ```js
 test('email gets sent and records correct payload', async () => {
-  const worker = startWorkerInProcess();  // 同程序、可控
+  const worker = startWorkerInProcess();  // same process, controllable
 
   await enqueueEmail({ to: 'a@b.c', subject: 'hi' });
-  await worker.processNext();  // 顯式跑一個 job，沒 sleep
+  await worker.processNext();  // explicitly run one job, no sleep
 
   const sent = await db.query('SELECT * FROM sent_emails');
   expect(sent).toHaveLength(1);
@@ -108,7 +108,7 @@ test('email gets sent and records correct payload', async () => {
 });
 ```
 
-### 好（方案 B：waitFor 條件輪詢）
+### Good (Option B: waitFor condition polling)
 
 ```js
 test('email gets sent', async () => {
@@ -124,15 +124,15 @@ test('email gets sent', async () => {
 });
 ```
 
-**做了什麼：** 不睡固定時間。要嘛由測試**控制觸發**，要嘛**輪詢可重複檢查的條件**。條件達成立刻往下走（快機快），條件不達成 timeout 才 fail（明確錯誤）。
+**What this does:** No fixed-duration sleep. Either the test **controls the trigger**, or it **polls a repeatably checkable condition**. It continues immediately when the condition is met (fast machines are fast), and fails only when the condition is not met by timeout (clear error).
 
 ---
 
-## 範例 3：State machine — 合法 + 非法轉換都要測
+## Example 3: State machine — valid + invalid transitions must both be tested
 
-**SUT：** Order 狀態機 `pending → paid → shipped → delivered`，可在 `pending`/`paid` 階段 `cancel`。
+**SUT:** Order state machine `pending → paid → shipped → delivered`; can `cancel` during `pending`/`paid`.
 
-### 壞
+### Bad
 
 ```js
 test('order flow', () => {
@@ -144,13 +144,13 @@ test('order flow', () => {
 });
 ```
 
-**問題：** 只測 happy 一條線，所有非法轉換完全沒驗。
+**Problem:** Only tests the happy line; all invalid transitions are completely unverified.
 
-### 好
+### Good
 
 ```js
 describe('order state machine', () => {
-  // 合法轉換
+  // Legal transitions
   test.each([
     ['pending', 'pay',     'paid'],
     ['paid',    'ship',    'shipped'],
@@ -163,59 +163,59 @@ describe('order state machine', () => {
     expect(o.status).toBe(to);
   });
 
-  // 非法轉換（每條一個 sub-test，符合「一個 scenario 一個」原則）
+  // Invalid transitions (one sub-test per case, following the "one scenario, one" principle)
   test.each([
     ['delivered', 'cancel'],
     ['cancelled', 'pay'],
-    ['shipped',   'cancel'],   // 已出貨不可取消
-    ['pending',   'ship'],     // 沒付款不可出貨
-    ['paid',      'deliver'],  // 沒出貨不可送達
+    ['shipped',   'cancel'],   // already shipped cannot cancel
+    ['pending',   'ship'],     // cannot ship before payment
+    ['paid',      'deliver'],  // cannot deliver before shipment
   ])('illegal: %s + %s rejected, status unchanged', (from, action) => {
     const o = makeOrderInState(from);
     expect(() => apply(o, action)).toThrow(IllegalTransition);
-    expect(o.status).toBe(from);  // 關鍵：失敗後狀態沒被污染
+    expect(o.status).toBe(from);  // Key: state was not polluted after failure
   });
 });
 ```
 
-**做了什麼：**
-- 合法 + 非法都列舉
-- 非法情境驗證 (1) 對的 error type、(2) **狀態沒被污染**
-- `test.each` 在這裡是**純表格對應**（input → expected）的合理用法——每 row 是同模式不同輸入，**不是不同行為**。對照 `ANTI-PATTERNS.md` §12 的反例。
+**What this does:**
+- Enumerates both valid + invalid transitions
+- Invalid scenarios verify (1) correct error type, (2) **state was not polluted**
+- `test.each` is a reasonable use of **pure table mapping** here (input -> expected) — each row is the same pattern with different input, **not a different behavior**. Compare the counterexample in `ANTI-PATTERNS.md` §12.
 
 ---
 
-## 寫完先拿前 3 例當 mental check
+## After writing, use the first 3 examples as a mental check
 
-1. **Error / 邊界**：error 路徑驗了**具體 error type** + 「不該發生的真的沒發生」？（範例 1）
-2. **Async**：有沒有用 `sleep` 偽裝同步？換成 deterministic 觸發或 `waitFor`？（範例 2）
-3. **State**：合法 + **非法**轉換都列舉？非法情境驗了「狀態不被污染」？（範例 3）
+1. **Error / boundary**: did the error path verify **concrete error type** + "what should not happen really did not happen"? (Example 1)
+2. **Async**: are you using `sleep` to fake synchronization? Replace with deterministic trigger or `waitFor`. (Example 2)
+3. **State**: did you enumerate valid + **invalid** transitions? Did invalid scenarios verify "state was not polluted"? (Example 3)
 
 ---
 
-## 範例 4：Go 後端 Integration Test（pgx + testcontainers 風格）
+## Example 4: Go backend Integration Test (pgx + testcontainers style)
 
-**SUT：** `CreateOrder(ctx, db, params)` — 在 Postgres 中建立訂單，不足庫存時拒絕。
+**SUT:** `CreateOrder(ctx, db, params)` — creates an order in Postgres and rejects when stock is insufficient.
 
-### 壞
+### Bad
 
 ```go
 func TestCreateOrder(t *testing.T) {
-    db := setupTestDB(t)  // 沒 t.Cleanup — 連線可能洩漏
+    db := setupTestDB(t)  // no t.Cleanup — connection may leak
     _, err := CreateOrder(ctx, db, OrderParams{UserID: "u1", SKU: "sku1", Qty: 5})
     if err != nil {
-        t.Error("should not error")  // 沒具體斷言，沒驗 DB 狀態
+        t.Error("should not error")  // no concrete assertion, does not verify DB state
     }
 }
 ```
 
-**問題：**
-- `setupTestDB` 沒 `t.Cleanup` 關連線 / terminate container → 平行跑時 handle 洩漏
-- Happy path only，沒驗庫存不足路徑
-- 沒驗 DB 寫入了正確 row（可能實作全刪了測試還過）
-- error 只 `t.Error` 繼續跑，後面 assert 可能在 nil pointer 上執行
+**Problems:**
+- `setupTestDB` has no `t.Cleanup` to close connection / terminate container -> handle leak under parallel runs
+- Happy path only; insufficient-stock path is not verified
+- Does not verify DB wrote the correct row (implementation could be entirely deleted and test would still pass)
+- Error only uses `t.Error` and continues; later asserts may run on nil pointer
 
-### 好
+### Good
 
 ```go
 func newTestDB(t *testing.T) *pgxpool.Pool {
@@ -267,15 +267,15 @@ func TestCreateOrder_HappyPath(t *testing.T) {
 
     orderID, err := CreateOrder(ctx, db, OrderParams{UserID: "u1", SKU: "sku1", Qty: 3})
     if err != nil {
-        t.Fatalf("unexpected error: %v", err)  // Fatal 立刻停，不繼續空指標
+        t.Fatalf("unexpected error: %v", err)  // Fatal stops immediately; do not continue to nil pointer
     }
 
-    // 驗 DB 真的有寫
+    // Verify DB really wrote
     row := queryOrder(t, db, orderID)
     if row.Qty != 3 {
         t.Errorf("qty: got %d, want 3", row.Qty)
     }
-    // 驗 side effect：庫存被扣
+    // Verify side effect: stock was decremented
     if stock := queryStock(t, db, "sku1"); stock != 7 {
         t.Errorf("stock: got %d, want 7", stock)
     }
@@ -298,7 +298,7 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
     if !errors.As(err, &insErr) {
         t.Fatalf("want InsufficientStockError, got %T: %v", err, err)
     }
-    // 關鍵：DB 沒被動到
+    // Key: DB was not touched
     if stock := queryStock(t, db, "sku1"); stock != 2 {
         t.Errorf("stock should be unchanged: got %d, want 2", stock)
     }
@@ -308,21 +308,21 @@ func TestCreateOrder_InsufficientStock(t *testing.T) {
 }
 ```
 
-**做了什麼：**
-- `t.Helper` 讓 helper 失敗時 stack trace 指向呼叫端
-- `t.Cleanup` 確保 DB pool / container 資源清理（含 panic 路徑）
-- `t.Fatalf` 取代 `t.Error` 讓 fail-fast，後續不在 nil 上繼續
-- 具體寫死的 expected 值（`3`、`7`、`2`）
-- 失敗路徑驗「**不該發生的真的沒發生**」（stock 不變 + 無 order row）
-- 具體 error type 用 `errors.As` 而非 `err != nil`
+**What this does:**
+- `t.Helper` makes helper failures point stack trace at the caller
+- `t.Cleanup` ensures DB pool / container resources are cleaned up (including panic paths)
+- `t.Fatalf` replaces `t.Error` to fail fast, so later code does not continue on nil
+- Concrete, hard-coded expected values (`3`, `7`, `2`)
+- Failure path verifies "**what should not happen really did not happen**" (stock unchanged + no order row)
+- Concrete error type uses `errors.As` instead of `err != nil`
 
 ---
 
-## 範例 5：React Native 元件測試（@testing-library/react-native）
+## Example 5: React Native component test (@testing-library/react-native)
 
-**SUT：** `<LoginForm onSuccess={cb} />` — 輸入 email + password 後呼叫 API，成功回呼 `onSuccess`，失敗顯示 error 訊息。
+**SUT:** `<LoginForm onSuccess={cb} />` — after entering email + password, calls API, calls `onSuccess` on success, and shows error message on failure.
 
-### 壞
+### Bad
 
 ```tsx
 test('login form works', () => {
@@ -330,18 +330,18 @@ test('login form works', () => {
   fireEvent.changeText(getByPlaceholderText('Email'), 'a@b.com');
   fireEvent.changeText(getByPlaceholderText('Password'), 'pw123');
   fireEvent.press(getByText('Login'));
-  // 沒 await → async 狀態更新沒完成就斷言 → act() 警告
-  expect(getByText('Welcome')).toBeTruthy();  // toBeTruthy 弱斷言
+  // no await -> async state update not complete before assertion -> act() warning
+  expect(getByText('Welcome')).toBeTruthy();  // weak assertion with toBeTruthy
 });
 ```
 
-**問題：**
-- `fireEvent.press` 觸發 async API call，但沒 `await waitFor` → React 狀態更新掛在空中 → `act()` 警告
-- `toBeTruthy()` 只驗「存在」，任何非 falsy 元素都過
-- 沒驗 `onSuccess` 真的被呼叫（核心 side effect 沒斷言）
-- 沒測 API 失敗路徑
+**Problems:**
+- `fireEvent.press` triggers async API call, but there is no `await waitFor` -> React state update is left hanging -> `act()` warning
+- `toBeTruthy()` only verifies "exists"; any non-falsy element passes
+- Does not verify `onSuccess` was actually called (core side effect is not asserted)
+- Does not test API failure path
 
-### 好
+### Good
 
 ```tsx
 import { render, fireEvent, waitFor } from '@testing-library/react-native';
@@ -354,7 +354,7 @@ const mockLogin = jest.mocked(apiClient.login);
 
 beforeEach(() => {
   mockLogin.mockReset();
-  // mock 止於外部邊界（API client），不 mock LoginForm 自己的邏輯
+  // mock stops at external boundary (API client), does not mock LoginForm's own logic
   mockLogin.mockResolvedValue({ token: 'tok123' });
 });
 
@@ -373,7 +373,7 @@ test('calls onSuccess with token on valid credentials', async () => {
   fireEvent.changeText(getByPlaceholderText('Password'), 'pw123');
   fireEvent.press(getByText('Login'));
 
-  // waitFor 等 async 狀態穩定 → 無 act() 警告
+  // waitFor waits for async state to stabilize -> no act() warning
   await waitFor(() => {
     expect(onSuccess).toHaveBeenCalledTimes(1);
     expect(onSuccess).toHaveBeenCalledWith({ token: 'tok123' });
@@ -399,20 +399,20 @@ test('shows error message on 401 and does not call onSuccess', async () => {
   fireEvent.press(getByText('Login'));
 
   await waitFor(() => {
-    expect(queryByText('Invalid credentials')).not.toBeNull();  // error UI 出現
+    expect(queryByText('Invalid credentials')).not.toBeNull();  // error UI appears
   });
-  expect(onSuccess).not.toHaveBeenCalled();  // 關鍵：成功 callback 沒被呼叫
+  expect(onSuccess).not.toHaveBeenCalled();  // Key: success callback was not called
 });
 ```
 
-**做了什麼：**
-- `await waitFor(...)` 讓 async 狀態 settle 再斷言 → 消除 `act()` 警告
-- Mock 止於 `apiClient`（外部邊界），不 mock 元件自己的邏輯
-- 具體驗 `onSuccess` 被呼叫且帶正確值（核心 side effect）
-- 失敗路徑驗「error UI 出現 + onSuccess 沒被呼叫」
+**What this does:**
+- `await waitFor(...)` lets async state settle before assertion -> eliminates `act()` warning
+- Mock stops at `apiClient` (external boundary), does not mock the component's own logic
+- Specifically verifies `onSuccess` was called with the correct value (core side effect)
+- Failure path verifies "error UI appears + onSuccess was not called"
 
-**4 個 act() 警告根因（常見排雷）：**
-1. `fireEvent` 後沒 `await waitFor` → 加 `await waitFor`
-2. `render` 本身觸發 async query（如 React Query）→ 用 `waitFor(() => expect(...).not.toBeNull())` 等初始載入完成
-3. `jest.useFakeTimers()` 但沒 `act(() => jest.runAllTimers())` → 在 act 內推進 timer
-4. Teardown 時仍有 pending state → `afterEach(() => { jest.clearAllMocks(); })`
+**4 root causes of act() warnings (common troubleshooting):**
+1. No `await waitFor` after `fireEvent` -> add `await waitFor`
+2. `render` itself triggers async query (such as React Query) -> use `waitFor(() => expect(...).not.toBeNull())` to wait for initial load
+3. `jest.useFakeTimers()` but no `act(() => jest.runAllTimers())` -> advance timer inside act
+4. Pending state remains during teardown -> `afterEach(() => { jest.clearAllMocks(); })`

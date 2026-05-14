@@ -1,84 +1,84 @@
-# Principles — 10 條核心原則
+# Principles — 10 Core Principles
 
-> 操作層守則在 `AGENT.md`，這份是「**為什麼**」。當你在 edge case 不確定怎麼判斷時讀這份。
+> Operational rules are in `AGENT.md`; this file explains "**why**". Read this when you are unsure how to judge an edge case.
 
 ---
 
-## 1. 測試的目的是發現 bug，不是證明程式有用
+## 1. The purpose of testing is to find bugs, not to prove the program is useful
 
-「測試全綠」是**無意義的句子**，除非你能加上「實作被破壞時，至少 95% 會 fail」。
+"All tests are green" is a **meaningless sentence** unless you can add "when the implementation is broken, at least 95% of the time they will fail".
 
-→ Coverage 是 lagging indicator，**mutation testing** 才是真實成績單。
+→ Coverage is a lagging indicator; **mutation testing** is the real report card.
 
-## 2. 獨立性
+## 2. Independence
 
-每條測試**單獨跑**也要通過，與順序無關。
+Every test must also pass when run **on its own**, regardless of order.
 
-→ CI 會 shard / 平行；單獨 debug 時你不會跑整個 suite。Setup 自己負責，cleanup 用 transaction rollback / fixture isolation。
+→ CI will shard / parallelize; when debugging one test, you will not run the whole suite. Setup is responsible for itself, and cleanup uses transaction rollback / fixture isolation.
 
-## 3. 確定性 — Flakiness 是 defect 不是個性
+## 3. Determinism — Flakiness is a defect, not a personality trait
 
-同樣輸入永遠同樣輸出。**容忍一次，整個團隊就學會無視紅燈。**
+The same input must always produce the same output. **Tolerate it once, and the whole team learns to ignore red lights.**
 
-主要 flakiness 來源：時間（注入 fake clock）、隨機（seeded RNG）、順序（sorted assertion）、並行（deterministic synchronization）、外部 IO（隔離邊界）。
+Main sources of flakiness: time (inject fake clock), randomness (seeded RNG), order (sorted assertion), concurrency (deterministic synchronization), external IO (isolate boundaries).
 
-**鐵律：**
-- 看到 flaky 立刻找根因，不要 retry / skip
-- 連續 flake 3 次 → 自動 quarantine（time-bound 7 天，到期未修就刪）
-- **嚴禁** 用 framework retry flag（`jest --retry` / `flaky: true`）當解法
-- 詳見 `TEST-STRATEGY.md` §7
+**Iron rules:**
+- When you see flaky behavior, find the root cause immediately; do not retry / skip
+- Flake 3 consecutive times -> automatic quarantine (time-bound 7 days; delete if not fixed by expiration)
+- **Strictly forbidden**: using framework retry flags (`jest --retry` / `flaky: true`) as the solution
+- See `TEST-STRATEGY.md` §7
 
-## 4. 可讀性 > 簡潔性
+## 4. Readability > concision
 
-測試是**可執行的規格文件**。將來的 reader 必須在 30 秒內看出：(1) 在驗什麼、(2) 為什麼預期是這個結果、(3) 失敗代表什麼壞了。
+Tests are **executable specification documents**. A future reader must be able to see within 30 seconds: (1) what is being verified, (2) why this result is expected, and (3) what is broken if it fails.
 
-不要為了 DRY 抽象到看不懂——測試的重複比抽象的代價更低。
+Do not abstract for DRY until the test becomes unreadable; duplication in tests costs less than abstraction.
 
-## 5. Arrange-Act-Assert（AAA）
+## 5. Arrange-Act-Assert (AAA)
 
 ```
-Arrange — 準備輸入與環境
-Act     — 觸發被測行為（**理想上一行**）
-Assert  — 驗證結果
+Arrange — prepare input and environment
+Act     — trigger the behavior under test (ideally one line)
+Assert  — verify the result
 ```
 
-需要 act 兩次 = 兩條測試。
+Need to act twice = two tests.
 
-## 6. 一條測試只測一個概念
+## 6. One test verifies one concept
 
-允許多個 `expect`，但它們必須**共同描述同一個概念**。
+Multiple `expect` calls are allowed, but they must **jointly describe the same concept**.
 
-例：「user 註冊成功」可同時驗 `回傳 user.id` + `DB 有這筆` + `歡迎信被排程`——三件事**共同構成**註冊成功。
-但「註冊成功 + 重複 email 失敗 + 密碼太短失敗」是 **3 條測試硬塞成 1 條**。
+Example: "user registration succeeds" may verify `returns user.id` + `DB has this row` + `welcome email is scheduled` at the same time; the three together **constitute** successful registration.
+But "registration succeeds + duplicate email fails + password too short fails" is **3 tests forced into 1**.
 
-## 7. 失敗訊息必須能定位根因
+## 7. Failure messages must locate the root cause
 
-斷言越具體，診斷越快。
+The more concrete the assertion, the faster the diagnosis.
 
-✗ `expect(x).toBeTruthy()` — 失敗只告訴你「不是 truthy」，是 null / 0 / "" / false 哪一個？
-✓ `expect(x.status).toBe(200)` 然後 `expect(x.body.userId).toBe(...)`
+✗ `expect(x).toBeTruthy()` — failure only tells you "not truthy"; is it null / 0 / "" / false?
+✓ `expect(x.status).toBe(200)` then `expect(x.body.userId).toBe(...)`
 
-**不用 `toBeTruthy` / `toBeDefined` / `not.toBeNull` 當主要斷言**，除非你**真的**只在乎「存在」。
+**Do not use `toBeTruthy` / `toBeDefined` / `not.toBeNull` as the main assertion**, unless you **really** only care that "it exists".
 
-## 8. 驗證行為，不驗證實作
+## 8. Verify behavior, not implementation
 
-綁實作的測試（「呼叫了 `cache.get` 三次」）在 refactor 時大量壞掉但**抓不到任何 bug**。
+Tests tied to implementation ("called `cache.get` three times") break heavily during refactors but **do not catch any bugs**.
 
-預設用 black-box（給輸入 / 看輸出 / 看可觀察 side effect）。**只在「互動本身就是規格」時才驗互動**（例：「下單必須發 OrderPlaced event」）。
+Default to black-box (give input / observe output / observe side effect). **Verify interactions only when "the interaction itself is the spec"** (example: "placing an order must emit an OrderPlaced event").
 
-## 9. 看到 red 才相信 green
+## 9. Believe green only after seeing red
 
-**新測試必須先看到它 fail 一次**，才能相信它「會在實作壞掉時保護你」。
+**A new test must first be seen failing once** before you can trust that it "will protect you when the implementation breaks".
 
-非 TDD 時的做法：寫完測試後**故意把實作打壞**（改一個比較運算子、註解掉一行）→ 跑 → 紅 → 還原 → 跑 → 綠。
+Non-TDD approach: after writing the test, **intentionally break the implementation** (change a comparison operator, comment out one line) -> run -> red -> restore -> run -> green.
 
-10 秒的動作，是「測試是真貨還是假貨」的唯一驗證。
+The 10-second action is the only verification of whether "the test is real or fake".
 
-## 10. 測試自己聲明意圖（self-documenting）
+## 10. Tests declare their own intent (self-documenting)
 
-每條測試**不看實作**，從函式名 + docstring 就應該知道：在驗什麼、怎麼安排、失敗代表什麼。
+Each test should tell you, **without reading the implementation**, from the function name + docstring: what is being verified, how it is arranged, and what failure means.
 
-**命名：** 完整句子描述行為。
+**Naming:** describe behavior in a complete sentence.
 
 ```
 returns 401 when token is expired
@@ -87,24 +87,24 @@ TestStartFeatureBranch
 TestFinishWithMergeConflict
 ```
 
-**強制 docstring：**
+**Mandatory docstring:**
 
 ```
-// <一句話：這個測試在驗什麼>
+// <one sentence: what this test verifies>
 // Steps:
-// 1. <準備>
-// 2. <觸發>
-// 3. <驗證>
+// 1. <prepare>
+// 2. <trigger>
+// 3. <verify>
 ```
 
-**一個 function 一個 scenario。** 例外：純函式 input/output 對照可用 table-driven。整合 / 行為測試一律拆。詳見 `ANTI-PATTERNS.md` §12。
+**One function, one scenario.** Exception: pure function input/output mappings may use table-driven tests. Integration / behavior tests are always split. See `ANTI-PATTERNS.md` §12.
 
 ---
 
-## 附錄：原則衝突時的優先順序
+## Appendix: Priority When Principles Conflict
 
 ```
-正確性 > 確定性 > 可讀性 > 簡潔性 > 速度
+correctness > determinism > readability > concision > speed
 ```
 
-例：可以為了確定性讓測試變慢（用真 DB 而非 mock）；不該為了速度引入 flakiness。
+Example: it is acceptable to make tests slower for determinism (use a real DB instead of a mock); it is not acceptable to introduce flakiness for speed.

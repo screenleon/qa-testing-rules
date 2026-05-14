@@ -1,111 +1,111 @@
-# Test Strategy — 層級、CI、環境、coverage、flakiness
+# Test Strategy — Layers, CI, environment, coverage, flakiness
 
-`TEST-CATEGORIES.md` 答「**測哪些 scenario**」；本檔答「**在哪一層測 / 何時跑 / 怎麼分流**」。兩個維度正交。
+`TEST-CATEGORIES.md` answers "**which scenarios to test**"; this file answers "**at which layer / when to run / how to route**". The two dimensions are orthogonal.
 
 ---
 
-## §1. 四個測試層級
+## §1. Four test layers
 
-| 層級 | 速度 | 真實度 | 主用 | 不適合 |
+| Layer | Speed | Realism | Primary use | Not suitable for |
 |---|---|---|---|---|
-| **Unit** | ms | 低 | 純邏輯、轉換、計算、狀態轉換、複雜 error 分支 | 系統邊界互動、跨服務協作 |
-| **Integration** | s | 高 | DB、API handler、queue consumer、cache、外部 client adapter | 純邏輯（用 unit 更快）、跨服務契約 |
-| **Contract** | s | 中 | 跨服務 / 跨團隊的 schema / payload / event 契約 | 任何 SUT 內部行為 |
-| **E2E** | 10s+ | 最高 | 少數關鍵商業流程的全鏈路煙霧 | 邊界、錯誤分支、組合爆炸 |
+| **Unit** | ms | low | pure logic, transforms, calculations, state transitions, complex error branches | system boundary interaction, cross-service collaboration |
+| **Integration** | s | high | DB, API handler, queue consumer, cache, external client adapter | pure logic (unit is faster), cross-service contracts |
+| **Contract** | s | medium | cross-service / cross-team schema / payload / event contracts | any SUT internal behavior |
+| **E2E** | 10s+ | highest | small number of full-chain smoke tests for critical business flows | boundaries, error branches, combinatorial explosion |
 
 ### 1.1 Unit
-- 幾乎不 mock — 除非 collaboration 本身就是被測對象
-- 不要 mock 語言/runtime 內建（例如 `Array.prototype.map`）
-- 不要 snapshot 巨型物件
+- Almost no mocking — unless collaboration itself is the subject under test
+- Do not mock language/runtime built-ins (for example `Array.prototype.map`)
+- Do not snapshot giant objects
 
-### 1.2 Integration（成熟團隊主力）
-用 **container 跑真實基礎設施**（testcontainers / docker-compose）。一條真實的 integration test 常勝過十條過度 mock 的「unit test」。
+### 1.2 Integration (the main force in mature teams)
+Run **real infrastructure in containers** (testcontainers / docker-compose). One real integration test often beats ten over-mocked "unit tests".
 
 ### 1.3 Contract
-- Contract **被版本化**（v1, v2…），不是「現在剛好長這樣」
-- Provider 在發布前驗證對舊 contract 仍相容
-- Consumer 對**期待的 contract** 寫測試，不是對「對方今天的實際回應」
+- Contracts are **versioned** (v1, v2...), not "whatever they happen to look like right now"
+- Provider verifies compatibility with old contracts before release
+- Consumer writes tests against the **expected contract**, not against "the other side's actual response today"
 
-#### Consumer-Driven Contract Testing（Pact 模式）
+#### Consumer-Driven Contract Testing (Pact pattern)
 
-傳統 contract test 讓 provider 定義 contract，consumer 靠文件對齊；文件一旦過期就失聯。Consumer-Driven Contract Testing 反轉方向：
+Traditional contract tests let the provider define the contract and consumers align by documentation; once documentation expires, the link breaks. Consumer-Driven Contract Testing reverses the direction:
 
-1. **Consumer** 在自己的 repo 寫測試，描述「我期待 provider 回傳什麼」
-2. Consumer 測試執行後生成 **Pact 檔案**（JSON contract）
-3. **Provider** 的 CI 拿這份 Pact 檔驗自己的 API
-4. 若 provider 改動破壞任何 consumer 的 Pact，CI 紅燈
+1. **Consumer** writes tests in its own repo describing "what I expect the provider to return"
+2. After consumer tests run, they generate a **Pact file** (JSON contract)
+3. **Provider** CI uses this Pact file to verify its own API
+4. If a provider change breaks any consumer's Pact, CI turns red
 
-工具：JS/TS 用 `@pact-foundation/pact`；Go 用 `github.com/pact-foundation/pact-go`；多 consumer 用 Pact Broker / PactFlow 管理。
+Tools: JS/TS use `@pact-foundation/pact`; Go uses `github.com/pact-foundation/pact-go`; multiple consumers use Pact Broker / PactFlow for management.
 
-這不是「全面引入 Pact」的要求。只有一個 consumer 時，版本化 OpenAPI schema + provider-side validation test 通常足夠。Pact 值得引入的條件：**≥ 2 個 consumer 且有獨立部署週期**。
+This is not a requirement to "fully adopt Pact". When there is only one consumer, a versioned OpenAPI schema + provider-side validation test is usually enough. Pact is worth introducing when: **≥ 2 consumers and independent deployment cycles**.
 
-### 1.4 E2E（少量）
-**只用於 5–10 條關鍵流程：** 登入 / 結帳 / 核心 CRUD / 權限邊界 / 部署 smoke。
+### 1.4 E2E (small number)
+**Use only for 5-10 critical flows:** login / checkout / core CRUD / permission boundary / deploy smoke.
 
-不要：覆蓋每種排列、綁不穩定的 UI 細節、把 E2E 當主要信心來源。
+Do not: cover every permutation, bind to unstable UI details, use E2E as the primary source of confidence.
 
-> 上百條脆弱 E2E 通常代表其他層級發育不良。
-
----
-
-## §2. 該選哪一層？
-
-```
-1. 純邏輯（無 IO）？           → Unit
-2. 與自己擁有的基礎設施互動？   → Integration（首選）
-3. 跨服務 / 跨團隊邊界？        → Contract
-4. 「不通則用戶無法完成核心目的」？ → 加一條 E2E（不超過 5–10 條）
-```
-
-**預設立場：** unit 與 integration 都能驗時 → **integration**，除非：
-- SUT 是純函式 → unit 又快又夠
-- 在測複雜計算 / 狀態組合，需要快速跑大量輸入
-
-> 「測試金字塔」是 2009 年世界觀。Testcontainers 起 Postgres 已是秒級——金字塔逐漸變梯形 / 獎盃形：integration 最寬，unit 守純邏輯，E2E 頂端薄。
+> Hundreds of brittle E2E tests usually mean other layers are underdeveloped.
 
 ---
 
-## §3. CI 分流策略
+## §2. Which layer should you choose?
 
-| Lane | 觸發 | 跑什麼 | 目標 |
+```
+1. Pure logic (no IO)?                    → Unit
+2. Interacts with infrastructure you own? → Integration (preferred)
+3. Cross-service / cross-team boundary?   → Contract
+4. "If broken, users cannot complete the core goal"? → Add one E2E (no more than 5-10)
+```
+
+**Default stance:** when both unit and integration can verify it -> **integration**, unless:
+- SUT is a pure function -> unit is faster and sufficient
+- Testing complex calculations / state combinations that require many inputs quickly
+
+> The "test pyramid" is a 2009 worldview. Testcontainers can start Postgres in seconds — the pyramid is gradually becoming a trapezoid / trophy shape: integration is widest, unit protects pure logic, and E2E stays thin at the top.
+
+---
+
+## §3. CI routing strategy
+
+| Lane | Trigger | Runs | Goal |
 |---|---|---|---|
-| **Fast** | PR 每次推送 | lint + type + unit + 最快 integration + cheap security | **5 分鐘內**告知 PR 是否明顯壞 |
-| **Confidence** | merge 到 main | 完整 integration + contract + migration + 核心 E2E | 保護 main 不退化 |
-| **Deep** | nightly / scheduled | 完整 E2E + perf baseline + chaos + 跨版本相容 | 慢但深入信心 |
+| **Fast** | every PR push | lint + type + unit + fastest integration + cheap security | tell whether the PR is obviously broken **within 5 minutes** |
+| **Confidence** | merge to main | full integration + contract + migration + core E2E | protect main from regression |
+| **Deep** | nightly / scheduled | full E2E + perf baseline + chaos + cross-version compatibility | slow but deep confidence |
 
-**不要：** 把 E2E 放進 PR fast lane（PR 作者每次等 30 分鐘 → 養成 `--no-verify` 肌肉記憶）；所有 lane 寫進同一個 yaml job；沒人定期看 nightly 失敗。
+**Do not:** put E2E in the PR fast lane (PR authors wait 30 minutes every time -> build `--no-verify` muscle memory); write every lane into the same yaml job; ignore nightly failures.
 
 ---
 
-## §4. 環境政策
+## §4. Environment policy
 
-| 階段 | 跑什麼 |
+| Stage | Runs |
 |---|---|
-| Local | unit + 與正在改的模組相關的 integration |
-| PR CI | unit + focused integration + smoke E2E（< 2 分鐘）|
-| Merge / main | broader integration + contract + 核心 E2E |
-| Nightly | 全 E2E + slow + migration + resilience |
-| Pre-release | rollback rehearsal + production-like smoke + alert sanity + canary 驗證 |
+| Local | unit + integration related to the module being changed |
+| PR CI | unit + focused integration + smoke E2E (< 2 minutes) |
+| Merge / main | broader integration + contract + core E2E |
+| Nightly | full E2E + slow + migration + resilience |
+| Pre-release | rollback rehearsal + production-like smoke + alert sanity + canary validation |
 
-> 測試不是一道牆，是**一連串遞增成本的信心關卡**。
+> Testing is not a wall; it is **a sequence of confidence gates with increasing cost**.
 
 ---
 
-## §5. 測試資料策略
+## §5. Test data strategy
 
-**偏好：**
-- Factory / Builder：`makeUser({ role: 'admin' })`，省略欄位有合理 default
-- 小而清晰的 fixture：意圖明確（`expiredTokenFixture`，不是 `fixture42.json`）
-- Test 自己擁有 seed
-- Disposable 環境：transaction rollback / per-test schema / per-test container
+**Prefer:**
+- Factory / Builder: `makeUser({ role: 'admin' })`, omitted fields have reasonable defaults
+- Small and clear fixture: explicit intent (`expiredTokenFixture`, not `fixture42.json`)
+- Test owns its own seed
+- Disposable environment: transaction rollback / per-test schema / per-test container
 
-**反對：**
-- 跨 suite 共用可變 fixture
-- 巨型「典型」資料集（200 行 `mockUser.json`）
-- Production data dump（個資、合規、缺 corner case）
-- 依賴外部 sandbox 的 seed（不可重現）
+**Reject:**
+- Mutable fixture shared across suites
+- Giant "typical" dataset (200-line `mockUser.json`)
+- Production data dump (PII, compliance, missing corner cases)
+- Seed that depends on external sandbox (not reproducible)
 
-**Custom matchers：** 同一個斷言模式出現 **3 次以上**才抽，避免過早抽象。
+**Custom matchers:** extract only when the same assertion pattern appears **3+ times**, to avoid premature abstraction.
 ```js
 expect(graphA).toEqualGraph(graphB);
 expect(response).toBeAuthorizedFor('admin');
@@ -113,49 +113,49 @@ expect(response).toBeAuthorizedFor('admin');
 
 ---
 
-## §6. Coverage 哲學
+## §6. Coverage philosophy
 
-**Coverage 是 weak signal，不是品質證明。**
+**Coverage is a weak signal, not proof of quality.**
 
-| 拿來 | 不拿來 |
+| Use for | Do not use for |
 |---|---|
-| 找明顯沒測到的區域 | 證明品質 |
-| 防止關鍵 module 退化（critical path 設下限）| 獎勵測試數量 |
-| 引導 review 對話 | 對每個 package 強制統一門檻而不分風險 |
+| finding obviously untested areas | proving quality |
+| preventing critical module regression (set a floor for critical path) | rewarding test quantity |
+| guiding review conversations | forcing one uniform threshold on every package regardless of risk |
 
-**比 coverage 更該追蹤：**
-- **Mutation score**（PIT、Stryker）：實作被打壞時多少 % 被抓到
-- **Flake rate**：flaky 比例與修復時間
-- **Mean time to red signal**：commit → CI 紅燈
+**Track these more than coverage:**
+- **Mutation score** (PIT, Stryker): what % is caught when the implementation is broken
+- **Flake rate**: flaky proportion and repair time
+- **Mean time to red signal**: commit -> CI red
 - **Time-to-fix flaky test**
 
 ---
 
-## §7. Flakiness 政策
+## §7. Flakiness policy
 
-**Flaky 測試是 defect。** 容忍一次，整個團隊就學會無視紅燈。
+**A flaky test is a defect.** Tolerate it once, and the whole team learns to ignore red lights.
 
-**政策（建議寫進團隊規範）：**
-1. Flaky test 視為 **bug ticket**，立刻開單
-2. 連續 flake N 次（例如 3 次）→ **自動 quarantine**（隔離但 visible）
-3. Quarantine **time-bound**（例如 7 天），到期未修 → **刪除**
-4. 每週 / 每月看 flake rate
-5. **嚴禁** retry 機制（`jest --retry`、`flaky: true`）—— retry 把 flake 從可見變不可見，更糟
+**Policy (recommended for team standards):**
+1. Treat flaky test as a **bug ticket** and open it immediately
+2. Flake N consecutive times (for example 3 times) -> **automatic quarantine** (isolated but visible)
+3. Quarantine is **time-bound** (for example 7 days); delete if not fixed by expiration
+4. Review flake rate weekly / monthly
+5. **Strictly forbid** retry mechanisms (`jest --retry`, `flaky: true`) — retry turns flakes from visible to invisible, which is worse
 
-**修 flaky 的順序：**
-1. 找根因（時間 / 並行 / 共享狀態 / 真實 IO 之一）
-2. 本地連跑 100 次確認可重現
-3. 重構成確定性（fake clock / deterministic event / isolated state）
-4. 重新連跑 100 次都綠 → 算修好
-5. **不要靠加長 timeout / 加 sleep 來「修」**
+**Order for fixing flaky tests:**
+1. Find the root cause (time / concurrency / shared state / real IO)
+2. Run locally 100 times to confirm reproducibility
+3. Refactor to determinism (fake clock / deterministic event / isolated state)
+4. Run 100 consecutive times green -> considered fixed
+5. **Do not "fix" by increasing timeout / adding sleep**
 
 ---
 
-## §8 一句話總結
+## §8 One-sentence summary
 
-- **層級**：unit 給純邏輯 / integration 主力 / contract 守服務邊界 / E2E 只放關鍵流程
-- **CI**：fast / confidence / deep 三 lane，對的訊號送對的階段
-- **環境**：local 跑得到的不丟 CI；CI 跑得到的不等 nightly
-- **資料**：factory > fixture > dump；test 自己擁有 seed
-- **Coverage**：弱信號，看 mutation 與 flake rate
-- **Flakiness**：defect，不可容忍，不可 retry 蓋住
+- **Layers**: unit for pure logic / integration as the main force / contract for service boundaries / E2E only for critical flows
+- **CI**: fast / confidence / deep lanes; send the right signal to the right stage
+- **Environment**: if it can run locally, do not throw it to CI; if it can run in CI, do not wait for nightly
+- **Data**: factory > fixture > dump; test owns its own seed
+- **Coverage**: weak signal; watch mutation and flake rate
+- **Flakiness**: defect; intolerable; must not be hidden by retry

@@ -184,7 +184,7 @@ Stance: **pessimistic reviewer**.
 - ✗ Name is `test 1` / `should work` / no docstring → reject
 - ✗ Only happy path → add boundary / negative / error categories
 - ✗ `toBeTruthy` as the main assertion → change to concrete value
-- ✗ Mock covers the SUT's own logic → split the mock
+- ✗ Mock covers the SUT's own logic → move the mock to an external boundary
 - ✗ `sleep` / shared mutable state / cwd dependency → rewrite
 - ✗ Table-driven test stuffs independent scenarios → split into multiple functions
 

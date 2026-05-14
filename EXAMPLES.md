@@ -4,7 +4,7 @@
 
 ---
 
-## Example 1: Boundary + Error path both missing (the most common "happy test" lesion)
+## Example 1: Boundary + Error path both missing (the most common "happy test" smell)
 
 **SUT:** `transferMoney(fromId, toId, amount)`, rejects when balance is insufficient and **must not** touch any account.
 

@@ -18,7 +18,7 @@
 - Do not mock language/runtime built-ins (for example `Array.prototype.map`)
 - Do not snapshot giant objects
 
-### 1.2 Integration (the main force in mature teams)
+### 1.2 Integration (the primary layer in mature teams)
 Run **real infrastructure in containers** (testcontainers / docker-compose). One real integration test often beats ten over-mocked "unit tests".
 
 ### 1.3 Contract

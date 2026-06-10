@@ -17,7 +17,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `EXAMPLES.md`: Example 6 (property-based testing with fast-check — invariants, shrinking, pinning counterexamples)
 - `AGENT.md`: SUT-type table row for LLM-powered features; §2.1 characterization-test exception; §3 pointers to the new reference files and §14
 - `semgrep/qa-testing-rules.yml`: machine-checkable rule pack (11 rules, JS/TS + Go + Python) covering sleep-in-test, chdir/setenv in tests, `jest.retryTimes`, `.only` / `.skip`, weak assertions, bare `toThrow()`
-- CI (`.github/workflows/ci.yml`): markdownlint, offline internal-link check, `AGENT.md` token-budget gate (`scripts/check-agent-token-budget.sh`), changelog structure check, semgrep rule validation
+- CI (`.github/workflows-pending/ci.yml` — move into `.github/workflows/` to activate; the automation token lacks the `workflow` scope): markdownlint, offline internal-link check, `AGENT.md` token-budget gate (`scripts/check-agent-token-budget.sh`), changelog structure check, semgrep rule validation
 - `.markdownlint-cli2.jsonc`: lint configuration matching the repo's writing style
 - `CHEATSHEET.md`: "Special SUTs — where to look" section (PBT / LLM / legacy)
 

@@ -74,7 +74,7 @@ Only consult the deeper reference files when AGENT.md explicitly points you ther
 
 ### Release process
 
-1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Locally: `npx markdownlint-cli2 '**/*.md'` and `bash scripts/check-agent-token-budget.sh`
+1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows-pending/ci.yml`](./.github/workflows-pending/ci.yml); move it to `.github/workflows/ci.yml` to activate — it was committed outside `workflows/` because the automation token lacks the `workflow` scope). Locally: `npx markdownlint-cli2 '**/*.md'` and `bash scripts/check-agent-token-budget.sh`
 2. Update `CHANGELOG.md` (move `[Unreleased]` → `[X.Y.Z]` + date)
 3. `git tag X.Y.Z && git push origin X.Y.Z`
 

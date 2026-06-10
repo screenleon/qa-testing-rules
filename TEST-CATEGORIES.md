@@ -1,6 +1,6 @@
-# Test Categories — 12-category enumeration checklist + optional privacy supplement
+# Test Categories — 12-category enumeration checklist + supplements
 
-> `AGENT.md` already includes a one-line quick reference for the 12 categories. This file is the **deep version**; read the corresponding section when you do not know what concrete cases to test for a category. §13 is an optional supplement for telemetry SUTs.
+> `AGENT.md` already includes a one-line quick reference for the 12 categories. This file is the **deep version**; read the corresponding section when you do not know what concrete cases to test for a category. §13 is an optional supplement for telemetry SUTs; §14 covers property-based testing as a generative complement to manual enumeration.
 >
 > Default stance: unless you can say "this category is not applicable because ___", **you must write it**. "Could not think of one" is not a valid N/A reason.
 
@@ -180,6 +180,51 @@ func TestCreateUser_LogDoesNotLeakPassword(t *testing.T) {
     }
 }
 ```
+
+---
+
+## 14. Property-Based Testing (generative supplement to #2 / #3)
+
+> Manual enumeration of boundaries and negative inputs (#2, #3) is never complete — you only test the cases you thought of. Property-based testing (PBT) generates hundreds of inputs and checks an **invariant**, then **shrinks** any failure to a minimal counterexample. It is a complement, not a replacement: keep your hand-picked example tests (they document the spec); add properties where enumeration is hopeless.
+
+**When PBT pays off:**
+
+| SUT shape | Property to assert |
+|---|---|
+| parser / serializer | **roundtrip**: `parse(format(x)) === x` for all valid `x` |
+| two implementations (new vs old, optimized vs naive) | **oracle**: both produce identical output for all inputs |
+| normalizer / sanitizer / migration | **idempotence**: `f(f(x)) === f(x)` |
+| calculation with algebraic structure | **invariant**: `splitAmount(total, n)` parts always sum to `total`; sort output is always ordered |
+| transformation with a relation between runs | **metamorphic**: `search(query, filter)` results ⊆ `search(query)` results |
+
+**When PBT does not pay off:** SUTs whose correctness is "matches the business rule for this specific case" with no generalizable invariant — example-based tests are the right tool there.
+
+**Tools:** `fast-check` (JS/TS), `Hypothesis` (Python), `go test -fuzz` / `gopter` (Go), `jqwik` (Java/Kotlin), `proptest` (Rust).
+
+**Rules:**
+
+1. **Every shrunk counterexample becomes a permanent example test.** PBT found the bug; a hard-coded regression test keeps it found (PBT runs are randomized — do not rely on it re-finding the same case).
+2. **Constrain generators to the valid input domain**, and write a *separate* property for invalid inputs ("all malformed inputs are rejected with `ParseError`, never a crash") — that second property is fuzzing, and covers #3's injection cases systematically.
+3. **Properties must not duplicate the implementation** (`ANTI-PATTERNS.md` §9 applies): assert relations (`sum === total`), not recomputed expected values.
+4. In CI, run with a fixed iteration count; on failure the framework prints the seed — record it in the regression test.
+
+```ts
+import fc from 'fast-check';
+
+// Invariant: splitting an amount across n parties loses no cents
+test('splitAmount parts always sum to the total', () => {
+  fc.assert(
+    fc.property(fc.integer({ min: 1, max: 10_000_000 }), fc.integer({ min: 1, max: 100 }),
+      (totalCents, parts) => {
+        const split = splitAmount(totalCents, parts);
+        expect(split.reduce((a, b) => a + b, 0)).toBe(totalCents); // relation, not recomputation
+        expect(Math.max(...split) - Math.min(...split)).toBeLessThanOrEqual(1);
+      })
+  );
+});
+```
+
+See `EXAMPLES.md` Example 6 for a full bad-vs-good comparison.
 
 ---
 

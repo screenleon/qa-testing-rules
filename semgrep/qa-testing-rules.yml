@@ -1,0 +1,163 @@
+# Machine-checkable subset of qa-testing-rules anti-patterns.
+#
+# Usage in a consuming project:
+#   semgrep --config https://raw.githubusercontent.com/screenleon/qa-testing-rules/main/semgrep/qa-testing-rules.yml
+# or vendor this file and run: semgrep --config semgrep/qa-testing-rules.yml
+#
+# Severity convention:
+#   ERROR   — Red Line violation (AGENT.md §0); should block CI
+#   WARNING — anti-pattern that is almost always wrong; fix or justify in review
+#   INFO    — smell that needs human judgment; surfaces in review, should not block
+
+rules:
+  # ── Red Line #3: no sleep as a synchronization mechanism ──────────────────
+  - id: qa-no-sleep-in-tests-go
+    languages: [go]
+    paths:
+      include: ["*_test.go"]
+    patterns:
+      - pattern: time.Sleep(...)
+    message: >
+      Red Line #3: do not use time.Sleep to wait for async results in tests.
+      Use a deterministic trigger, fake clock, or condition polling
+      (qa-testing-rules ANTI-PATTERNS.md §7, EXAMPLES.md Example 2).
+    severity: ERROR
+
+  - id: qa-no-sleep-in-tests-python
+    languages: [python]
+    paths:
+      include: ["*_test.py", "test_*.py", "tests/**"]
+    patterns:
+      - pattern: time.sleep(...)
+    message: >
+      Red Line #3: do not use time.sleep to wait for async results in tests.
+      Use a deterministic trigger, fake clock, or condition polling
+      (qa-testing-rules ANTI-PATTERNS.md §7).
+    severity: ERROR
+
+  - id: qa-no-sleep-in-tests-js
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern-either:
+          - pattern: await new Promise((...) => setTimeout(...))
+          - pattern: await sleep($N)
+          - pattern: await delay($N)
+    message: >
+      Red Line #3: do not use sleep/setTimeout delays to wait for async results in tests.
+      Use await on the actual operation, fake timers, or waitFor(condition)
+      (qa-testing-rules ANTI-PATTERNS.md §7, EXAMPLES.md Example 2).
+    severity: ERROR
+
+  # ── Anti-pattern §13: hidden cwd / env / global state dependency ──────────
+  - id: qa-no-chdir-in-tests-go
+    languages: [go]
+    paths:
+      include: ["*_test.go"]
+    patterns:
+      - pattern: os.Chdir(...)
+    message: >
+      Do not change the process working directory in tests — parallel tests pollute
+      each other. Pass the directory as a parameter or set cmd.Dir
+      (qa-testing-rules ANTI-PATTERNS.md §13). If unavoidable, use t.Chdir (Go 1.24+).
+    severity: WARNING
+
+  - id: qa-use-t-setenv-go
+    languages: [go]
+    paths:
+      include: ["*_test.go"]
+    patterns:
+      - pattern: os.Setenv(...)
+    fix-regex:
+      regex: os\.Setenv\(
+      replacement: t.Setenv(
+    message: >
+      Use t.Setenv (auto-restored) instead of os.Setenv in tests — os.Setenv leaks
+      global state into later tests (qa-testing-rules ANTI-PATTERNS.md §13).
+    severity: WARNING
+
+  - id: qa-no-chdir-in-tests-js
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern: process.chdir(...)
+    message: >
+      Do not change the process working directory in tests — parallel tests pollute
+      each other. Pass paths explicitly instead
+      (qa-testing-rules ANTI-PATTERNS.md §13).
+    severity: WARNING
+
+  # ── Flakiness policy: retry mechanisms hide flakes ─────────────────────────
+  - id: qa-no-jest-retry
+    languages: [javascript, typescript]
+    patterns:
+      - pattern: jest.retryTimes(...)
+    message: >
+      Retry mechanisms turn flakes from visible into invisible, which is worse.
+      Find the root cause instead (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: WARNING
+
+  # ── Focused / skipped tests must not reach the main branch ────────────────
+  - id: qa-no-focused-tests-js
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern-either:
+          - pattern: test.only(...)
+          - pattern: it.only(...)
+          - pattern: describe.only(...)
+          - pattern: fit(...)
+          - pattern: fdescribe(...)
+    message: >
+      Focused test (.only / fit) silently disables the rest of the suite.
+      Remove before merging (qa-testing-rules ANTI-PATTERNS.md reviewer checklist).
+    severity: ERROR
+
+  - id: qa-no-skipped-tests-js
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern-either:
+          - pattern: test.skip(...)
+          - pattern: it.skip(...)
+          - pattern: describe.skip(...)
+          - pattern: xit(...)
+          - pattern: xdescribe(...)
+    message: >
+      Skipped test on the main branch is a quarantine without an expiry date.
+      Fix it or delete it; if quarantining, time-bound it
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
+
+  # ── Principle §7: weak assertions ──────────────────────────────────────────
+  - id: qa-weak-assertion-tobetruthy
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern-either:
+          - pattern: expect($X).toBeTruthy()
+          - pattern: expect($X).toBeDefined()
+    message: >
+      Weak assertion: toBeTruthy/toBeDefined tells a failing run almost nothing
+      (null? 0? ""? false?). Assert a concrete value unless "exists" is genuinely
+      the whole spec (qa-testing-rules PRINCIPLES.md §7).
+    severity: INFO
+
+  - id: qa-bare-tothrow
+    languages: [javascript, typescript]
+    paths:
+      include: ["*.test.js", "*.test.ts", "*.test.jsx", "*.test.tsx", "*.spec.js", "*.spec.ts", "*.spec.jsx", "*.spec.tsx", "__tests__/**"]
+    patterns:
+      - pattern-either:
+          - pattern: expect($X).toThrow()
+          - pattern: expect($X).rejects.toThrow()
+    message: >
+      Bare toThrow() passes for ANY error — including the wrong one
+      (DBConnectionError where InsufficientBalance was the spec). Assert the
+      concrete error type (qa-testing-rules AGENT.md Step 3, EXAMPLES.md Example 1).
+    severity: INFO

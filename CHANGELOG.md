@@ -8,6 +8,23 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `LLM-TESTING.md`: new Tier 2 reference for SUTs that call an LLM — deterministic-shell vs non-deterministic-core split, assertion ladder, eval suites with statistical pass-rate thresholds, LLM-as-judge calibration, LLM-specific readings of the 12 categories, LLM testing anti-patterns
+- `LEGACY-TESTING.md`: new Tier 2 reference for adding tests to untested code — characterization tests (and how they differ from "freezing a bug as spec"), seams, sprout/wrap, approval testing (golden files done right), blast-radius prioritization, agent workflow
+- `TEST-CATEGORIES.md`: §14 Property-based testing — when generation beats enumeration, property shapes (roundtrip / oracle / idempotence / invariant / metamorphic), tools per language, shrunk-counterexample-to-regression-test rule
+- `TEST-STRATEGY.md`: §1.5 Writing the few E2E tests well — selector strategy, network boundary, auth state reuse, deterministic waiting; plus visual regression and accessibility (axe-core) supplements
+- `TEST-STRATEGY.md`: §6.1 Automating mutation testing — tools per language, CI lane placement (incremental on PR, full on nightly), score floors on critical modules, equivalent-mutant handling
+- `EXAMPLES.md`: Example 6 (property-based testing with fast-check — invariants, shrinking, pinning counterexamples)
+- `AGENT.md`: SUT-type table row for LLM-powered features; §2.1 characterization-test exception; §3 pointers to the new reference files and §14
+- `semgrep/qa-testing-rules.yml`: machine-checkable rule pack (11 rules, JS/TS + Go + Python) covering sleep-in-test, chdir/setenv in tests, `jest.retryTimes`, `.only` / `.skip`, weak assertions, bare `toThrow()`
+- CI (`.github/workflows/ci.yml`): markdownlint, offline internal-link check, `AGENT.md` token-budget gate (`scripts/check-agent-token-budget.sh`), changelog structure check, semgrep rule validation
+- `.markdownlint-cli2.jsonc`: lint configuration matching the repo's writing style
+- `CHEATSHEET.md`: "Special SUTs — where to look" section (PBT / LLM / legacy)
+
+### Changed
+- `README.md`: translated to English for consistency with the rule files; added Enforcement section (semgrep pack); documented CI-backed release process; standardized tag format to plain `X.Y.Z` (matching the existing `1.1.0` tag)
+- `TEST-CATEGORIES.md`: retitled supplements section to cover §13 and §14
+
 ---
 
 ## [1.1.0] - 2026-05-12

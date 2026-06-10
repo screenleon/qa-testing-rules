@@ -74,6 +74,16 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 
 ---
 
+## Special SUTs — where to look
+
+| Situation | Read |
+|---|---|
+| Boundary/negative enumeration is endless (parser / serializer / money math) | `TEST-CATEGORIES.md` §14 — property-based testing (roundtrip / invariant / idempotence) |
+| SUT calls an LLM (non-deterministic output) | `LLM-TESTING.md` — mock the LLM for shell logic; eval suite + statistical pass-rate for output quality; never live API in PR lane |
+| Untested legacy code you must change | `LEGACY-TESTING.md` — labeled `[characterization]` tests first, then change; sprout/wrap for new logic |
+
+---
+
 ## Top anti-pattern symptoms
 
 - `should work` / `test1` / no docstring, so CI red gives no visible intent

@@ -13,8 +13,8 @@ jobs:
     name: Markdown lint
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: DavidAnson/markdownlint-cli2-action@v19
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+      - uses: DavidAnson/markdownlint-cli2-action@05f32210e84442804257b2a6f20b273450ec8265 # v19.1.0
         with:
           globs: '**/*.md'
 
@@ -22,10 +22,10 @@ jobs:
     name: Internal link check
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       # --offline: only verify links between files in this repo (deterministic —
       # external-site downtime must not turn our CI red; see TEST-STRATEGY.md §7).
-      - uses: lycheeverse/lychee-action@v2
+      - uses: lycheeverse/lychee-action@8646ba30535128ac92d33dfc9133794bfdd9b411 # v2.8.0
         with:
           args: --offline --no-progress './**/*.md'
           fail: true
@@ -34,14 +34,14 @@ jobs:
     name: AGENT.md token budget
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - run: bash scripts/check-agent-token-budget.sh
 
   changelog:
     name: Changelog structure
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - name: CHANGELOG.md keeps an Unreleased section
         run: grep -q '^## \[Unreleased\]' CHANGELOG.md
 
@@ -49,6 +49,19 @@ jobs:
     name: Validate semgrep rule pack
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
       - run: pipx install 'semgrep==1.75.0'
       - run: semgrep --validate --config semgrep/qa-testing-rules.yml
+
+  semgrep-fixture-tests:
+    name: Semgrep fixture tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9f698171ed81b15d1823a05fc7211befd50c8ae0 # v6.0.3
+      - run: pipx install 'semgrep==1.75.0'
+      # semgrep --test ignores `paths:` filters by design (see semgrep docs:
+      # "testing-rules"). Fixture files are named qa-testing-rules.{go,py,ts}
+      # to match the rule-file stem (qa-testing-rules.yml) — that is the
+      # semgrep test-discovery convention, not a language test-file convention.
+      # Local verification: semgrep==1.75.0 → 11/11 tests pass.
+      - run: semgrep --test semgrep/

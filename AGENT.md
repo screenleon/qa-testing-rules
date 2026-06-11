@@ -38,6 +38,7 @@ Default stance: when both unit and integration can verify it, **choose integrati
 | HTTP middleware | Integration | middleware depends on request/response object semantics; use httptest |
 | Repository / DAO | Integration | do not mock DB; run directly against a real DB |
 | Pure function / transformer | Unit | no IO, fast, highly deterministic |
+| LLM-powered feature | Unit/Integration (shell, LLM mocked) + Eval suite (model output) | non-deterministic output needs different assertions → `LLM-TESTING.md` |
 
 ### Step 2 — Enumerate test categories (before writing the first line of test code)
 
@@ -169,6 +170,7 @@ Additional rules:
 - **Do not write tests to accommodate the existing implementation**; that freezes a bug as a spec
 - List every SUT branch (if / switch / try-catch / early return / async error path), at least one test per branch
 - If the SUT logic is unclear, **ask a person first**; do not make assumptions yourself
+- Exception for **refactoring untested code**: first pin current behavior with explicitly labeled `[characterization]` tests (temporary scaffolding, not spec), then change → workflow in `LEGACY-TESTING.md`
 
 ### 2.2 Bug regression test
 
@@ -199,8 +201,11 @@ For each test, **mentally run mutation**: "If the implementation's `>` is change
 | Unsure which test layer to use | `TEST-STRATEGY.md` §1–§2 |
 | Designing CI / environment policy / coverage threshold / flakiness policy | `TEST-STRATEGY.md` §3–§7 |
 | Stuck on concrete sub-cases for a category | the corresponding section in `TEST-CATEGORIES.md` |
+| Boundary / negative enumeration feels endless (parser, serializer, money math) | `GENERATIVE-TESTING.md` |
 | See a smell in a test and want to confirm whether it is an anti-pattern | `ANTI-PATTERNS.md` |
 | Need good vs bad code comparisons | `EXAMPLES.md` |
+| SUT calls an LLM / output is non-deterministic | `LLM-TESTING.md` |
+| Adding tests to untested legacy code before changing it | `LEGACY-TESTING.md` |
 | Want to understand the why behind the principles | `PRINCIPLES.md` |
 
 **Do not read them when unnecessary** — this AGENT.md already covers 80% of tasks.

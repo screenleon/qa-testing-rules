@@ -1,0 +1,29 @@
+{
+  "config": {
+    "default": true,
+    // Long lines are fine — tables and one-sentence-per-line prose dominate this repo.
+    "MD013": false,
+    // CHANGELOG and per-example sections legitimately repeat heading text.
+    "MD024": { "siblings_only": true },
+    // Inline HTML is occasionally needed in tables.
+    "MD033": false,
+    // Bare URLs appear inside instruction blocks intentionally.
+    "MD034": false,
+    // Emphasis-as-heading is used for "Bad/Good" labels by design.
+    "MD036": false,
+    // Some illustrative blocks are pseudo-output with no meaningful language tag.
+    "MD040": false,
+    // Blockquote style varies between callouts and quoted text.
+    "MD028": false,
+    // "$" prompts etc. in code blocks.
+    "MD014": false,
+    // The repo's compact writing style intentionally omits blank lines around
+    // lists/fences/headings in dense reference sections.
+    "MD031": false,
+    "MD032": false,
+    "MD022": false,
+    // Tables are written compact-or-aligned per context; no single column style.
+    "MD060": false
+  },
+  "ignores": ["node_modules", "LICENSE"]
+}

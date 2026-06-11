@@ -1,6 +1,6 @@
-# Examples — Bad vs good comparisons (selected 5 examples)
+# Examples — Bad vs good comparisons (selected 6 examples)
 
-> ANTI-PATTERNS already includes a small comparison example for each anti-pattern. This file keeps the 5 scenarios that are **most commonly done wrong and most worth reading in full**.
+> ANTI-PATTERNS already includes a small comparison example for each anti-pattern. This file keeps the 6 scenarios that are **most commonly done wrong and most worth reading in full**.
 
 ---
 
@@ -416,3 +416,78 @@ test('shows error message on 401 and does not call onSuccess', async () => {
 2. `render` itself triggers async query (such as React Query) -> use `waitFor(() => expect(...).not.toBeNull())` to wait for initial load
 3. `jest.useFakeTimers()` but no `act(() => jest.runAllTimers())` -> advance timer inside act
 4. Pending state remains during teardown -> `afterEach(() => { jest.clearAllMocks(); })`
+
+---
+
+## Example 6: Property-based testing — when enumeration can't keep up
+
+**SUT:** `splitAmount(totalCents, parts)` — splits a money amount across `parts` recipients; no cent may be lost or created, and shares must differ by at most 1 cent.
+
+### Bad
+
+```js
+test('splits 100 into 3 parts', () => {
+  expect(splitAmount(100, 3)).toEqual([34, 33, 33]);
+});
+
+test('splits 90 into 3 parts', () => {
+  expect(splitAmount(90, 3)).toEqual([30, 30, 30]);
+});
+```
+
+**Problems:**
+- Two hand-picked inputs. The class of bugs this SUT actually has — rounding drift on awkward divisions (`101/7`? `1/100`? `9_999_999/97`?) — lives precisely in the inputs nobody thought to enumerate
+- The first test also over-specifies distribution order (`[34, 33, 33]` vs `[33, 34, 33]`): if the spec only requires "fair split", the test breaks on a legal implementation change
+
+### Good
+
+```js
+import fc from 'fast-check';
+
+/**
+ * Invariants of splitAmount for ALL valid inputs:
+ * conservation (parts sum to total) and fairness (max - min <= 1).
+ * Steps:
+ * 1. Generate totalCents in [1, 10^7], parts in [1, 100]
+ * 2. Run splitAmount
+ * 3. Assert the two invariants as relations (not recomputed values)
+ */
+test('conserves every cent and keeps shares within 1 cent of each other', () => {
+  fc.assert(
+    fc.property(
+      fc.integer({ min: 1, max: 10_000_000 }),
+      fc.integer({ min: 1, max: 100 }),
+      (totalCents, parts) => {
+        const split = splitAmount(totalCents, parts);
+
+        expect(split).toHaveLength(parts);
+        expect(split.reduce((a, b) => a + b, 0)).toBe(totalCents);
+        expect(Math.max(...split) - Math.min(...split)).toBeLessThanOrEqual(1);
+      }
+    )
+  );
+});
+
+/**
+ * Regression: shrunk counterexample found by fast-check on 2026-06-02 (seed 1149043120).
+ * splitAmount(1, 3) used to return [1, 0, 0, 0] — one part too many.
+ */
+test('splitAmount(1, 3) returns exactly 3 parts summing to 1', () => {
+  expect(splitAmount(1, 3).sort((a, b) => b - a)).toEqual([1, 0, 0]);
+});
+
+// Spec-documenting example stays — it shows a reader concrete expected output
+test('splits 100 cents into 3 fair parts', () => {
+  const split = splitAmount(100, 3);
+  expect(split.sort((a, b) => b - a)).toEqual([34, 33, 33]);
+});
+```
+
+**What this does:**
+- Asserts **relations** (`sum === totalCents`), not recomputed expected values — does not duplicate the implementation (`ANTI-PATTERNS.md` §9)
+- The generator covers the whole valid domain; **shrinking** reports a minimal failing case instead of a random huge one
+- The shrunk counterexample is **pinned as a permanent hard-coded regression test** (PBT runs are randomized; the example test keeps the bug found)
+- Hand-written example tests remain for spec documentation — PBT complements, never replaces them
+- Sorting before comparing avoids over-specifying distribution order where the spec doesn't require it
+
+When to reach for this pattern → `TEST-CATEGORIES.md` §14.

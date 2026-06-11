@@ -46,6 +46,23 @@ Do not: cover every permutation, bind to unstable UI details, use E2E as the pri
 
 > Hundreds of brittle E2E tests usually mean other layers are underdeveloped.
 
+### 1.5 Writing the few E2E tests well
+
+Keeping E2E *few* is half the policy; the other half is keeping them *non-brittle*:
+
+- **Selectors:** target what the user perceives — role/label (`getByRole('button', { name: 'Checkout' })`) or a dedicated `data-testid`. Never CSS chains (`div.col > span:nth-child(3)`) — they break on every markup change while catching no bugs.
+- **Network boundary:** your own backend is real (that is the point of E2E); **third-party services are stubbed** (payment provider sandbox / mocked webhook) — otherwise their downtime is your flake.
+- **Auth:** log in once per worker via API, persist storage state, and reuse it. Logging in through the UI in every test makes the login page the most-tested feature and the slowest suite.
+- **Each test creates its own data** through API/seed hooks; never depend on "the staging database happens to have user X" (`ANTI-PATTERNS.md` §5 at E2E scale).
+- **Waiting:** web-first assertions / `waitFor` conditions, never fixed sleeps — Red Line #3 applies doubly here.
+
+**UI-layer supplements (separate suites, not inside functional E2E):**
+
+| Suite | Tool & policy |
+|---|---|
+| **Visual regression** | screenshot-diff (Playwright snapshots / Chromatic) only for **stable, design-system-level** components; review every diff like a golden file (`LEGACY-TESTING.md` §4) — blind `--update` is snapshot rot |
+| **Accessibility** | axe-core scan (`@axe-core/playwright` / `jest-axe`) on critical pages as a CI gate for *violations*; this catches the mechanical 30–50%, it does not replace manual a11y review |
+
 ---
 
 ## §2. Which layer should you choose?
@@ -128,6 +145,28 @@ expect(response).toBeAuthorizedFor('admin');
 - **Flake rate**: flaky proportion and repair time
 - **Mean time to red signal**: commit -> CI red
 - **Time-to-fix flaky test**
+
+### 6.1 Automating mutation testing
+
+`AGENT.md` Step 4's manual mutation self-test is per-change discipline; it does not scale to a whole codebase. Automate it:
+
+| Language | Tool |
+|---|---|
+| JS / TS | [Stryker](https://stryker-mutator.io/) |
+| Java / Kotlin | [PIT](https://pitest.org/) |
+| Python | mutmut / cosmic-ray |
+| Go | gremlins / go-mutesting |
+| Rust | cargo-mutants |
+| C# | Stryker.NET |
+
+**CI placement (maps to §3 lanes):**
+- **PR lane: incremental mode only** — mutate only the lines changed in the diff (Stryker `--incremental`, PIT `--targetClasses` on the diff). Full-codebase runs take hours; never put them in the PR lane.
+- **Nightly / deep lane:** full run on critical modules; publish the score trend.
+
+**Reading the score:**
+- Set a **floor on critical modules** (e.g. payments ≥ 80%), not one global threshold — same philosophy as coverage above.
+- A surviving mutant means "if a developer made exactly this mistake, no test would notice." Triage it like a missing-test report: add the test, or consciously accept the gap.
+- **Equivalent mutants** (mutations that don't change observable behavior) are noise — mark them ignored in tool config rather than writing contorted tests to kill them. They typically cap real-world scores around 85–95%; **do not chase 100%**.
 
 ---
 

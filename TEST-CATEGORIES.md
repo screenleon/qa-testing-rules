@@ -1,6 +1,6 @@
-# Test Categories — 12-category enumeration checklist + optional privacy supplement
+# Test Categories — 12-category enumeration checklist + supplements
 
-> `AGENT.md` already includes a one-line quick reference for the 12 categories. This file is the **deep version**; read the corresponding section when you do not know what concrete cases to test for a category. §13 is an optional supplement for telemetry SUTs.
+> `AGENT.md` already includes a one-line quick reference for the 12 categories. This file is the **deep version**; read the corresponding section when you do not know what concrete cases to test for a category. §13 is an optional supplement for telemetry SUTs; §14 summarizes property-based testing and points to `GENERATIVE-TESTING.md` for the full guide.
 >
 > Default stance: unless you can say "this category is not applicable because ___", **you must write it**. "Could not think of one" is not a valid N/A reason.
 
@@ -180,6 +180,18 @@ func TestCreateUser_LogDoesNotLeakPassword(t *testing.T) {
     }
 }
 ```
+
+---
+
+## 14. Property-Based Testing (generative supplement to #2 / #3)
+
+When manual enumeration of boundaries (#2) and negative inputs (#3) is endless — parsers, serializers, money math, state machines — switch to generative testing: define an **invariant** and let the framework generate inputs automatically, then shrink any failure to a minimal counterexample.
+
+Common property shapes: **roundtrip** (`parse(format(x)) === x`), **oracle** (new impl matches old), **idempotence** (`f(f(x)) === f(x)`), **invariant** (parts sum to total), **metamorphic** (adding a filter only narrows results).
+
+Key rules: every shrunk counterexample becomes a permanent regression test; properties must not restate the implementation; constrain generators to the valid domain and write a *separate* property for invalid inputs (fuzzing).
+
+**→ Read `GENERATIVE-TESTING.md`** for the full decision guide, all property shapes, tool matrix (fast-check / Hypothesis / go fuzz / jqwik / proptest), shrinking strategy, and examples. See also `EXAMPLES.md` Example 6.
 
 ---
 

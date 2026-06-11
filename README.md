@@ -1,30 +1,34 @@
 # qa-testing-rules
 
-語言/框架無關的 QA 測試規範，給 AI coding agent 與人類工程師一份可被 `@import` 的單一事實來源。
+Language/framework-agnostic QA testing rules — a single source of truth that AI coding agents and human engineers can `@import`.
 
-## 為什麼存在
+## Why this exists
 
-LLM agent 在沒有明確指引時預設產出「**happy-path-only**」測試——覆蓋率漂亮但抓不到 bug。本 repo 強迫：(1) 寫測試前**枚舉測試類別**、(2) 提供**反模式對照**、(3) 提供**寫完的 mutation 自我審查**。
+Without explicit guidance, LLM agents default to **happy-path-only** tests — pretty coverage numbers that catch no bugs. This repo forces three habits: (1) **enumerate test categories** before writing tests, (2) compare against an **anti-pattern catalog**, and (3) run a **mutation self-review** after writing.
 
-## 兩層結構（重要）
+## Two-tier structure (important)
 
-**Tier 1（agent hot path，永遠載入，~3.7k tokens）：**
-- [`AGENT.md`](./AGENT.md) — agent 的唯一必讀入口。workflow + 12 類速查表 + 紅線 + 自查清單。
+**Tier 1 (agent hot path, always loaded, ~3k tokens — budget enforced in CI):**
 
-**Tier 2（reference，**有需要時才讀**）：**
+- [`AGENT.md`](./AGENT.md) — the agent's only required entry point. Workflow + 12-category quick reference + red lines + self-checklist.
 
-| 檔案 | 何時讀 |
+**Tier 2 (reference, read only when needed):**
+
+| File | When to read |
 |---|---|
-| [`PRINCIPLES.md`](./PRINCIPLES.md) | 在 edge case 不確定怎麼判斷時 |
-| [`TEST-STRATEGY.md`](./TEST-STRATEGY.md) | 選測試層級、設計 CI / 環境 / coverage / flakiness 政策時 |
-| [`TEST-CATEGORIES.md`](./TEST-CATEGORIES.md) | 卡在某類 category 的具體子案例時 |
-| [`ANTI-PATTERNS.md`](./ANTI-PATTERNS.md) | Review / 看到 smell 想確認是不是 anti-pattern 時 |
-| [`EXAMPLES.md`](./EXAMPLES.md) | 需要好 vs 壞 code 對照時 |
-| [`CHEATSHEET.md`](./CHEATSHEET.md) | 快速回顧 layer 選擇、12 類別、anti-pattern index 時 |
+| [`PRINCIPLES.md`](./PRINCIPLES.md) | unsure how to judge an edge case |
+| [`TEST-STRATEGY.md`](./TEST-STRATEGY.md) | choosing test layers, designing CI / environments / coverage / flakiness / mutation-testing policy |
+| [`TEST-CATEGORIES.md`](./TEST-CATEGORIES.md) | stuck on concrete sub-cases for a category |
+| [`GENERATIVE-TESTING.md`](./GENERATIVE-TESTING.md) | boundary / negative enumeration is endless (parser, serializer, money math) — property-based, fuzzing, model-based |
+| [`ANTI-PATTERNS.md`](./ANTI-PATTERNS.md) | reviewing / saw a smell and want to confirm it is an anti-pattern |
+| [`EXAMPLES.md`](./EXAMPLES.md) | need good-vs-bad code comparisons |
+| [`LLM-TESTING.md`](./LLM-TESTING.md) | the SUT calls an LLM / output is non-deterministic |
+| [`LEGACY-TESTING.md`](./LEGACY-TESTING.md) | adding tests to untested legacy code before changing it |
+| [`CHEATSHEET.md`](./CHEATSHEET.md) | quick recall of layer choice, 12 categories, anti-pattern index |
 
-## 使用方式（給 agent）
+## Usage (for agents)
 
-在你的專案 `CLAUDE.md` / `AGENTS.md` / `.cursorrules` / `GEMINI.md` 加：
+Add to your project's `CLAUDE.md` / `AGENTS.md` / `.cursorrules` / `GEMINI.md`:
 
 ```md
 ## Testing rules
@@ -33,23 +37,35 @@ When writing or reviewing tests, read:
 https://github.com/screenleon/qa-testing-rules/blob/main/AGENT.md
 
 Only consult the deeper reference files (PRINCIPLES / TEST-STRATEGY /
-TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES) when AGENT.md explicitly
-points you to them, to keep token usage low.
+TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES / GENERATIVE-TESTING / LLM-TESTING / LEGACY-TESTING)
+when AGENT.md explicitly points you to them, to keep token usage low.
 ```
 
-## 核心立場
+## Enforcement (machine-checkable subset)
 
-> **測試的目的是發現 bug，不是證明程式有用。**
-> 一條測試在實作被破壞時不會失敗，這條測試就等於不存在。
+Documentation does not stop violations; linters do. [`semgrep/qa-testing-rules.yml`](./semgrep/qa-testing-rules.yml) encodes the mechanically detectable anti-patterns (sleep-in-test, `.only` / `.skip`, weak assertions, bare `toThrow()`, `os.Chdir` / `os.Setenv` in tests, `jest.retryTimes`) as Semgrep rules for JS/TS, Go, and Python:
+
+```sh
+semgrep --config https://raw.githubusercontent.com/screenleon/qa-testing-rules/main/semgrep/qa-testing-rules.yml
+```
+
+Severity convention: `ERROR` = red-line violation (block CI), `WARNING` = fix or justify, `INFO` = needs human judgment.
+
+## Core stance
+
+> **The purpose of testing is to find bugs, not to prove the program works.**
+> A test that does not fail when the implementation breaks might as well not exist.
 
 ## Versioning
 
-qa-testing-rules 遵循 [Semantic Versioning](https://semver.org/)：
-- **MAJOR**：刪除現有規則或改變 `AGENT.md` 工作流 step 順序（agent 必須重新學習）
-- **MINOR**：新增類別、範例、Anti-pattern，或擴展現有規則（向後相容）
-- **PATCH**：文字修正、格式改善、不影響規則語意的改動
+qa-testing-rules follows [Semantic Versioning](https://semver.org/). Tags use `vX.Y.Z` (e.g. `v1.1.0`):
 
-其他 repo 應 pin release tag 或 commit SHA，而非 `main` branch。把 `vX.Y.Z` 換成實際存在的 release tag：
+- **MAJOR**: removing existing rules or changing the `AGENT.md` workflow step order (agents must relearn)
+- **MINOR**: new categories, examples, anti-patterns, or backward-compatible rule extensions
+- **PATCH**: wording fixes, formatting, changes that do not affect rule semantics
+
+Other repos should pin a release tag or commit SHA, not the `main` branch. Replace `vX.Y.Z` with an existing release tag:
+
 ```md
 ## Testing rules
 When writing or reviewing tests, read:
@@ -57,23 +73,30 @@ https://github.com/screenleon/qa-testing-rules/blob/vX.Y.Z/AGENT.md
 Only consult the deeper reference files when AGENT.md explicitly points you there.
 ```
 
-### Release 流程
+### Release process
 
-1. 完成 changes 並執行驗證（此 repo 為純文件，執行 `git diff --check main` 確認無空白錯誤；未來若加入 lint/test 工具請在此補充指令）
-2. 更新 `CHANGELOG.md`（移動 `[Unreleased]` → `[vX.Y.Z]` + 加日期）
+1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Local parity:
+   ```sh
+   npx markdownlint-cli2 '**/*.md'
+   bash scripts/check-agent-token-budget.sh
+   grep -q '^## \[Unreleased\]' CHANGELOG.md && echo "changelog ok"
+   semgrep --validate --config semgrep/qa-testing-rules.yml
+   ```
+2. Update `CHANGELOG.md` (move `[Unreleased]` → `[vX.Y.Z]` + date)
 3. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
-變更歷史見 [`CHANGELOG.md`](./CHANGELOG.md)。
+See [`CHANGELOG.md`](./CHANGELOG.md) for history.
 
-## 致謝
+## Acknowledgements
 
-濃縮自：
-- [khasky/testing-strategy-playbook](https://github.com/khasky/testing-strategy-playbook) — 測試層級、CI 分流、coverage / flakiness 政策
-- [gittower/git-flow-next](https://github.com/gittower/git-flow-next/blob/main/TESTING_GUIDELINES.md) — 結構化 docstring、命名 pattern、一個 function 一個 scenario、cwd anti-pattern
-- [SolidOS testing_guidelines](https://github.com/SolidOS/solidos/blob/main/documentation/guidelines/testing_guidelines.md) — bug-first reproducing test、custom matchers
+Condensed from:
 
-差異定位：把上述參考整合成「**agent 可逐步執行的工作流**」（hot path 5k tokens 內，深層細節按需載入）。
+- [khasky/testing-strategy-playbook](https://github.com/khasky/testing-strategy-playbook) — test layers, CI routing, coverage / flakiness policy
+- [gittower/git-flow-next](https://github.com/gittower/git-flow-next/blob/main/TESTING_GUIDELINES.md) — structured docstrings, naming patterns, one scenario per function, cwd anti-pattern
+- [SolidOS testing_guidelines](https://github.com/SolidOS/solidos/blob/main/documentation/guidelines/testing_guidelines.md) — bug-first reproducing tests, custom matchers
 
-## 授權
+Differentiation: the references above are integrated into an **agent-executable step-by-step workflow** (hot path under budget, deep details loaded on demand), plus an enforceable Semgrep rule pack.
+
+## License
 
 MIT

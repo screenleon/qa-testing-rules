@@ -18,7 +18,8 @@ Without explicit guidance, LLM agents default to **happy-path-only** tests — p
 |---|---|
 | [`PRINCIPLES.md`](./PRINCIPLES.md) | unsure how to judge an edge case |
 | [`TEST-STRATEGY.md`](./TEST-STRATEGY.md) | choosing test layers, designing CI / environments / coverage / flakiness / mutation-testing policy |
-| [`TEST-CATEGORIES.md`](./TEST-CATEGORIES.md) | stuck on concrete sub-cases for a category; property-based testing (§14) |
+| [`TEST-CATEGORIES.md`](./TEST-CATEGORIES.md) | stuck on concrete sub-cases for a category |
+| [`GENERATIVE-TESTING.md`](./GENERATIVE-TESTING.md) | boundary / negative enumeration is endless (parser, serializer, money math) — property-based, fuzzing, model-based |
 | [`ANTI-PATTERNS.md`](./ANTI-PATTERNS.md) | reviewing / saw a smell and want to confirm it is an anti-pattern |
 | [`EXAMPLES.md`](./EXAMPLES.md) | need good-vs-bad code comparisons |
 | [`LLM-TESTING.md`](./LLM-TESTING.md) | the SUT calls an LLM / output is non-deterministic |
@@ -36,7 +37,7 @@ When writing or reviewing tests, read:
 https://github.com/screenleon/qa-testing-rules/blob/main/AGENT.md
 
 Only consult the deeper reference files (PRINCIPLES / TEST-STRATEGY /
-TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES / LLM-TESTING / LEGACY-TESTING)
+TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES / GENERATIVE-TESTING / LLM-TESTING / LEGACY-TESTING)
 when AGENT.md explicitly points you to them, to keep token usage low.
 ```
 
@@ -57,26 +58,26 @@ Severity convention: `ERROR` = red-line violation (block CI), `WARNING` = fix or
 
 ## Versioning
 
-qa-testing-rules follows [Semantic Versioning](https://semver.org/). Tags are plain `X.Y.Z` (e.g. `1.1.0`):
+qa-testing-rules follows [Semantic Versioning](https://semver.org/). Tags use `vX.Y.Z` (e.g. `v1.1.0`):
 
 - **MAJOR**: removing existing rules or changing the `AGENT.md` workflow step order (agents must relearn)
 - **MINOR**: new categories, examples, anti-patterns, or backward-compatible rule extensions
 - **PATCH**: wording fixes, formatting, changes that do not affect rule semantics
 
-Other repos should pin a release tag or commit SHA, not the `main` branch. Replace `X.Y.Z` with an existing release tag:
+Other repos should pin a release tag or commit SHA, not the `main` branch. Replace `vX.Y.Z` with an existing release tag:
 
 ```md
 ## Testing rules
 When writing or reviewing tests, read:
-https://github.com/screenleon/qa-testing-rules/blob/X.Y.Z/AGENT.md
+https://github.com/screenleon/qa-testing-rules/blob/vX.Y.Z/AGENT.md
 Only consult the deeper reference files when AGENT.md explicitly points you there.
 ```
 
 ### Release process
 
-1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows-pending/ci.yml`](./.github/workflows-pending/ci.yml); move it to `.github/workflows/ci.yml` to activate — it was committed outside `workflows/` because the automation token lacks the `workflow` scope). Locally: `npx markdownlint-cli2 '**/*.md'` and `bash scripts/check-agent-token-budget.sh`
-2. Update `CHANGELOG.md` (move `[Unreleased]` → `[X.Y.Z]` + date)
-3. `git tag X.Y.Z && git push origin X.Y.Z`
+1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Locally: `npx markdownlint-cli2 '**/*.md'` and `bash scripts/check-agent-token-budget.sh`
+2. Update `CHANGELOG.md` (move `[Unreleased]` → `[vX.Y.Z]` + date)
+3. `git tag vX.Y.Z && git push origin vX.Y.Z`
 
 See [`CHANGELOG.md`](./CHANGELOG.md) for history.
 

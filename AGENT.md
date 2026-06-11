@@ -201,7 +201,7 @@ For each test, **mentally run mutation**: "If the implementation's `>` is change
 | Unsure which test layer to use | `TEST-STRATEGY.md` §1–§2 |
 | Designing CI / environment policy / coverage threshold / flakiness policy | `TEST-STRATEGY.md` §3–§7 |
 | Stuck on concrete sub-cases for a category | the corresponding section in `TEST-CATEGORIES.md` |
-| Boundary / negative enumeration feels endless (parser, serializer, money math) | `TEST-CATEGORIES.md` §14 (property-based testing) |
+| Boundary / negative enumeration feels endless (parser, serializer, money math) | `GENERATIVE-TESTING.md` |
 | See a smell in a test and want to confirm whether it is an anti-pattern | `ANTI-PATTERNS.md` |
 | Need good vs bad code comparisons | `EXAMPLES.md` |
 | SUT calls an LLM / output is non-deterministic | `LLM-TESTING.md` |

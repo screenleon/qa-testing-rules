@@ -78,7 +78,7 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 
 | Situation | Read |
 |---|---|
-| Boundary/negative enumeration is endless (parser / serializer / money math) | `TEST-CATEGORIES.md` §14 — property-based testing (roundtrip / invariant / idempotence) |
+| Boundary/negative enumeration is endless (parser / serializer / money math) | `GENERATIVE-TESTING.md` — property-based, fuzzing, model-based testing (roundtrip / invariant / idempotence) |
 | SUT calls an LLM (non-deterministic output) | `LLM-TESTING.md` — mock the LLM for shell logic; eval suite + statistical pass-rate for output quality; never live API in PR lane |
 | Untested legacy code you must change | `LEGACY-TESTING.md` — labeled `[characterization]` tests first, then change; sprout/wrap for new logic |
 

@@ -1,5 +1,11 @@
 # Backlog
 
+## Closed
+
+### ~~[medium] Add Semgrep fixture tests for the rule pack~~ — done in feat/semgrep-fixtures-sha-pins
+
+### ~~[medium] Pin GitHub Actions to commit SHAs~~ — done in feat/semgrep-fixtures-sha-pins (checkout upgraded to v6.0.3)
+
 ## Open
 
 ### [medium] Add Semgrep fixture tests for the rule pack

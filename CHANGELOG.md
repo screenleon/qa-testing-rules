@@ -9,6 +9,12 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- `semgrep/fixtures/`: positive-case fixture tests for all 11 Semgrep rules (Go, Python, JS/TS) — `semgrep --test` now verifies rules fire where expected
+
+### Changed
+- `.github/workflows/ci.yml`: added `semgrep-fixture-tests` job; pinned all Actions to commit SHAs (`actions/checkout` upgraded v4→v6.0.3, `markdownlint-cli2-action` v19.1.0, `lychee-action` v2.8.0); Semgrep pinned to 1.75.0
+
+### Added
 - `LLM-TESTING.md`: new Tier 2 reference for SUTs that call an LLM — deterministic-shell vs non-deterministic-core split, assertion ladder, eval suites with statistical pass-rate thresholds, LLM-as-judge calibration, LLM-specific readings of the 12 categories, LLM testing anti-patterns
 - `LEGACY-TESTING.md`: new Tier 2 reference for adding tests to untested code — characterization tests (and how they differ from "freezing a bug as spec"), seams, sprout/wrap, approval testing (golden files done right), blast-radius prioritization, agent workflow
 - `GENERATIVE-TESTING.md`: new Tier 2 reference — property-based, fuzzing, and model-based testing; full property-shape guide (roundtrip / oracle / idempotence / invariant / metamorphic / monotonicity), tool matrix, shrinking strategy, examples (fast-check / Hypothesis / go fuzz)

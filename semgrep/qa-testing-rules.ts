@@ -1,5 +1,5 @@
 // Semgrep fixture tests for qa-testing-rules JS/TS rules.
-// Lines annotated with "// ruleid: <id>" must be matched by the named rule.
+// Annotated lines must be matched by the named rule.
 // Clean alternatives (no annotation) verify the rule doesn't fire on correct code.
 
 /* eslint-disable */

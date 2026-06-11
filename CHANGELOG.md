@@ -8,6 +8,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [v1.2.0] - 2026-06-11
+
 ### Added
 - `LLM-TESTING.md`: new Tier 2 reference for SUTs that call an LLM — deterministic-shell vs non-deterministic-core split, assertion ladder, eval suites with statistical pass-rate thresholds, LLM-as-judge calibration, LLM-specific readings of the 12 categories, LLM testing anti-patterns
 - `LEGACY-TESTING.md`: new Tier 2 reference for adding tests to untested code — characterization tests (and how they differ from "freezing a bug as spec"), seams, sprout/wrap, approval testing (golden files done right), blast-radius prioritization, agent workflow

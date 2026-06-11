@@ -75,7 +75,13 @@ Only consult the deeper reference files when AGENT.md explicitly points you ther
 
 ### Release process
 
-1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Locally: `npx markdownlint-cli2 '**/*.md'` and `bash scripts/check-agent-token-budget.sh`
+1. Make changes and let CI validate them (markdownlint, internal link check, `AGENT.md` token budget, changelog structure, semgrep rule validation — see [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)). Local parity:
+   ```sh
+   npx markdownlint-cli2 '**/*.md'
+   bash scripts/check-agent-token-budget.sh
+   grep -q '^## \[Unreleased\]' CHANGELOG.md && echo "changelog ok"
+   semgrep --validate --config semgrep/qa-testing-rules.yml
+   ```
 2. Update `CHANGELOG.md` (move `[Unreleased]` → `[vX.Y.Z]` + date)
 3. `git tag vX.Y.Z && git push origin vX.Y.Z`
 

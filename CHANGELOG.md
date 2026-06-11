@@ -9,12 +9,6 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- `semgrep/fixtures/`: positive-case fixture tests for all 11 Semgrep rules (Go, Python, JS/TS) — `semgrep --test` now verifies rules fire where expected
-
-### Changed
-- `.github/workflows/ci.yml`: added `semgrep-fixture-tests` job; pinned all Actions to commit SHAs (`actions/checkout` upgraded v4→v6.0.3, `markdownlint-cli2-action` v19.1.0, `lychee-action` v2.8.0); Semgrep pinned to 1.75.0
-
-### Added
 - `LLM-TESTING.md`: new Tier 2 reference for SUTs that call an LLM — deterministic-shell vs non-deterministic-core split, assertion ladder, eval suites with statistical pass-rate thresholds, LLM-as-judge calibration, LLM-specific readings of the 12 categories, LLM testing anti-patterns
 - `LEGACY-TESTING.md`: new Tier 2 reference for adding tests to untested code — characterization tests (and how they differ from "freezing a bug as spec"), seams, sprout/wrap, approval testing (golden files done right), blast-radius prioritization, agent workflow
 - `GENERATIVE-TESTING.md`: new Tier 2 reference — property-based, fuzzing, and model-based testing; full property-shape guide (roundtrip / oracle / idempotence / invariant / metamorphic / monotonicity), tool matrix, shrinking strategy, examples (fast-check / Hypothesis / go fuzz)
@@ -24,7 +18,8 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `EXAMPLES.md`: Example 6 (property-based testing with fast-check — invariants, shrinking, pinning counterexamples)
 - `AGENT.md`: SUT-type table row for LLM-powered features; §2.1 characterization-test exception; §3 pointers to the new reference files including `GENERATIVE-TESTING.md`
 - `semgrep/qa-testing-rules.yml`: machine-checkable rule pack (11 rules, JS/TS + Go + Python) covering sleep-in-test, chdir/setenv in tests, `jest.retryTimes`, `.only` / `.skip`, weak assertions, bare `toThrow()`
-- CI (`.github/workflows/ci.yml`): markdownlint, offline internal-link check, `AGENT.md` token-budget gate (`scripts/check-agent-token-budget.sh`), changelog structure check, semgrep rule validation (pinned to semgrep==1.75.0)
+- `semgrep/fixtures/`: positive-case fixture tests for all 11 Semgrep rules (Go, Python, JS/TS) — `semgrep --test` verifies rules fire where expected
+- CI (`.github/workflows/ci.yml`): markdownlint, offline internal-link check, `AGENT.md` token-budget gate (`scripts/check-agent-token-budget.sh`), changelog structure check, semgrep rule validation, semgrep fixture tests; Actions pinned to commit SHAs (`actions/checkout` v6.0.3, `markdownlint-cli2-action` v19.1.0, `lychee-action` v2.8.0); Semgrep pinned to 1.75.0
 - `.markdownlint-cli2.jsonc`: lint configuration matching the repo's writing style
 - `CHEATSHEET.md`: "Special SUTs — where to look" section (PBT / LLM / legacy)
 

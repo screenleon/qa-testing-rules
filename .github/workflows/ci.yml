@@ -63,5 +63,6 @@ jobs:
       # "testing-rules"). Fixture files are named qa-testing-rules.{go,py,ts}
       # to match the rule-file stem (qa-testing-rules.yml) — that is the
       # semgrep test-discovery convention, not a language test-file convention.
-      # Local verification: semgrep==1.75.0 → 11/11 tests pass.
+      # Local verification uses the pinned Semgrep version and fixture files for
+      # every supported language.
       - run: semgrep --test semgrep/

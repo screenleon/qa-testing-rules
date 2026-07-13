@@ -61,7 +61,7 @@ Keeping E2E *few* is half the policy; the other half is keeping them *non-brittl
 | Suite | Tool & policy |
 |---|---|
 | **Visual regression** | screenshot-diff (Playwright snapshots / Chromatic) only for **stable, design-system-level** components; review every diff like a golden file (`LEGACY-TESTING.md` §4) — blind `--update` is snapshot rot |
-| **Accessibility** | axe-core scan (`@axe-core/playwright` / `jest-axe`) on critical pages as a CI gate for *violations*; this catches the mechanical 30–50%, it does not replace manual a11y review |
+| **Accessibility** | axe-core scan (`@axe-core/playwright` / `jest-axe`) on critical pages as a CI gate for mechanically detectable violations; a clean scan does not replace manual/assisted review → `ACCESSIBILITY-TESTING.md` |
 
 ---
 
@@ -179,13 +179,13 @@ expect(response).toBeAuthorizedFor('admin');
 2. Flake N consecutive times (for example 3 times) -> **automatic quarantine** (isolated but visible)
 3. Quarantine is **time-bound** (for example 7 days); delete if not fixed by expiration
 4. Review flake rate weekly / monthly
-5. **Strictly forbid** retry mechanisms (`jest --retry`, `flaky: true`) — retry turns flakes from visible to invisible, which is worse
+5. Allow retries only for detection, classification, or temporary containment. A retry-pass must remain visibly **FLAKY**, with owner, ticket, first-seen date, expiry/review date, and diagnostic artifacts; it is not a clean pass or a fix.
 
 **Order for fixing flaky tests:**
 1. Find the root cause (time / concurrency / shared state / real IO)
 2. Run locally 100 times to confirm reproducibility
 3. Refactor to determinism (fake clock / deterministic event / isolated state)
-4. Run 100 consecutive times green -> considered fixed
+4. Run a risk-appropriate repeated-run count (100 is a recommended high-confidence example) green -> considered fixed
 5. **Do not "fix" by increasing timeout / adding sleep**
 
 ---
@@ -197,4 +197,4 @@ expect(response).toBeAuthorizedFor('admin');
 - **Environment**: if it can run locally, do not throw it to CI; if it can run in CI, do not wait for nightly
 - **Data**: factory > fixture > dump; test owns its own seed
 - **Coverage**: weak signal; watch mutation and flake rate
-- **Flakiness**: defect; intolerable; must not be hidden by retry
+- **Flakiness**: defect; retries may classify it but must not hide it

@@ -4,11 +4,12 @@
 
 ---
 
-## Three Red Lines
+## Four Red Lines
 
 1. **Do not write a test unless you are sure it will fail when the implementation breaks.** Better not to write it.
 2. **Do not mock the SUT's own logic.** Mocking must stop at external boundaries (DB / network / time / filesystem / third-party SDK).
 3. **Do not rely on `sleep(N)` to wait for async results.** Use deterministic event / fake clock / `waitFor`.
+4. **Do not derive expected behavior from the same implementation under test.** Exception: explicitly labeled `[characterization]` tests only.
 
 ---
 
@@ -81,6 +82,10 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 | Boundary/negative enumeration is endless (parser / serializer / money math) | `GENERATIVE-TESTING.md` — property-based, fuzzing, model-based testing (roundtrip / invariant / idempotence) |
 | SUT calls an LLM (non-deterministic output) | `LLM-TESTING.md` — mock the LLM for shell logic; eval suite + statistical pass-rate for output quality; never live API in PR lane |
 | Untested legacy code you must change | `LEGACY-TESTING.md` — labeled `[characterization]` tests first, then change; sprout/wrap for new logic |
+| AI agent writes/changes tests, expected values, snapshots, or golden files | `TEST-ORACLES.md` — independent evidence, high-risk oracle changes, acceptance gate |
+| Input/configuration combinations are too large | `TEST-DESIGN.md` — partitions, decision tables, pairwise/t-way, state models, metamorphic/differential |
+| Accessibility behavior | `ACCESSIBILITY-TESTING.md` — automated checks plus manual/assisted WCAG 2.2 evidence |
+| Dependency failure, capacity, rollout, or recovery | `RELIABILITY-TESTING.md` — degradation, backpressure, canary, restore rehearsal |
 
 ---
 
@@ -89,7 +94,7 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 - `should work` / `test1` / no docstring, so CI red gives no visible intent
 - `toBeTruthy` / `toBeDefined` as the main assertion, without concrete expected
 - Mocks outnumber real code, or even mock the SUT's own helper
-- `sleep` / adding timeout / retry hides flake instead of waiting for a deterministic condition
+- `sleep` / adding timeout hides flake instead of waiting for a deterministic condition; retry-pass is reported clean
 - Error path only verifies `toThrow()`, without verifying concrete error type and "no side effects"
 - Table-driven stuffs different scenarios into one test, making failures hard to locate
 - `os.Chdir` / `process.chdir` / `os.Setenv` pollutes global state

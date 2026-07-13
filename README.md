@@ -24,6 +24,10 @@ Without explicit guidance, LLM agents default to **happy-path-only** tests — p
 | [`EXAMPLES.md`](./EXAMPLES.md) | need good-vs-bad code comparisons |
 | [`LLM-TESTING.md`](./LLM-TESTING.md) | the SUT calls an LLM / output is non-deterministic |
 | [`LEGACY-TESTING.md`](./LEGACY-TESTING.md) | adding tests to untested legacy code before changing it |
+| [`TEST-ORACLES.md`](./TEST-ORACLES.md) | writing/reviewing AI-generated tests; changing assertions, snapshots, golden files, or expected behavior |
+| [`TEST-DESIGN.md`](./TEST-DESIGN.md) | selecting high-value cases from large input/configuration spaces |
+| [`ACCESSIBILITY-TESTING.md`](./ACCESSIBILITY-TESTING.md) | automated and manual accessibility evidence aligned to WCAG 2.2 |
+| [`RELIABILITY-TESTING.md`](./RELIABILITY-TESTING.md) | dependency failure, queues, capacity, canary, recovery, and production-safe probes |
 | [`CHEATSHEET.md`](./CHEATSHEET.md) | quick recall of layer choice, 12 categories, anti-pattern index |
 
 ## Usage (for agents)
@@ -37,13 +41,14 @@ When writing or reviewing tests, read:
 https://github.com/screenleon/qa-testing-rules/blob/main/AGENT.md
 
 Only consult the deeper reference files (PRINCIPLES / TEST-STRATEGY /
-TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES / GENERATIVE-TESTING / LLM-TESTING / LEGACY-TESTING)
+TEST-CATEGORIES / ANTI-PATTERNS / EXAMPLES / GENERATIVE-TESTING / LLM-TESTING / LEGACY-TESTING /
+TEST-ORACLES / TEST-DESIGN / ACCESSIBILITY-TESTING / RELIABILITY-TESTING)
 when AGENT.md explicitly points you to them, to keep token usage low.
 ```
 
 ## Enforcement (machine-checkable subset)
 
-Documentation does not stop violations; linters do. [`semgrep/qa-testing-rules.yml`](./semgrep/qa-testing-rules.yml) encodes the mechanically detectable anti-patterns (sleep-in-test, `.only` / `.skip`, weak assertions, bare `toThrow()`, `os.Chdir` / `os.Setenv` in tests, `jest.retryTimes`) as Semgrep rules for JS/TS, Go, and Python:
+Documentation does not stop violations; linters help enforce the machine-checkable subset. [`semgrep/qa-testing-rules.yml`](./semgrep/qa-testing-rules.yml) encodes selected anti-patterns (sleep-in-test, `.only` / `.skip`, weak assertions, bare `toThrow()`, unsafe test-state changes, and retry configuration) for JS/TS, Go, Python, Java, C#, and Rust. It cannot determine whether an expected value is correct; that requires the provenance and review gate in [`TEST-ORACLES.md`](./TEST-ORACLES.md).
 
 ```sh
 semgrep --config https://raw.githubusercontent.com/screenleon/qa-testing-rules/main/semgrep/qa-testing-rules.yml

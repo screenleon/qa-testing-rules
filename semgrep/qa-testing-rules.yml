@@ -50,6 +50,41 @@ rules:
       (qa-testing-rules ANTI-PATTERNS.md §7, EXAMPLES.md Example 2).
     severity: ERROR
 
+  - id: qa-no-sleep-in-tests-java
+    languages: [java]
+    paths:
+      include: ["*Test.java", "*Tests.java", "src/test/**"]
+    pattern: Thread.sleep(...)
+    message: >
+      Do not use Thread.sleep to wait for async results in tests. Use a
+      deterministic signal, fake clock, or condition polling
+      (qa-testing-rules ANTI-PATTERNS.md §7).
+    severity: ERROR
+
+  - id: qa-no-sleep-in-tests-csharp
+    languages: [csharp]
+    paths:
+      include: ["*Test.cs", "*Tests.cs", "**/Tests/**"]
+    pattern: Thread.Sleep(...)
+    message: >
+      Do not use Thread.Sleep to wait for async results in tests. Use a
+      deterministic signal, fake clock, or condition polling
+      (qa-testing-rules ANTI-PATTERNS.md §7).
+    severity: ERROR
+
+  - id: qa-no-sleep-in-tests-rust
+    languages: [rust]
+    paths:
+      include: ["*_test.rs", "tests/**"]
+    pattern-either:
+      - pattern: std::thread::sleep(...)
+      - pattern: thread::sleep(...)
+    message: >
+      Do not use thread::sleep to wait for async results in tests. Use a
+      deterministic signal, controlled runtime, or condition polling
+      (qa-testing-rules ANTI-PATTERNS.md §7).
+    severity: ERROR
+
   # ── Anti-pattern §13: hidden cwd / env / global state dependency ──────────
   - id: qa-no-chdir-in-tests-go
     languages: [go]
@@ -89,15 +124,26 @@ rules:
       (qa-testing-rules ANTI-PATTERNS.md §13).
     severity: WARNING
 
-  # ── Flakiness policy: retry mechanisms hide flakes ─────────────────────────
+  # ── Flakiness policy: classify retries; never hide their signal ─────────────
   - id: qa-no-jest-retry
     languages: [javascript, typescript]
     patterns:
       - pattern: jest.retryTimes(...)
     message: >
-      Retry mechanisms turn flakes from visible into invisible, which is worse.
-      Find the root cause instead (qa-testing-rules TEST-STRATEGY.md §7).
-    severity: WARNING
+      A retry may classify or temporarily contain a flake, but retry-pass must
+      remain visibly FLAKY with owner, ticket, expiry, and artifacts
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
+
+  - id: qa-playwright-retries-require-flake-governance
+    languages: [javascript, typescript]
+    patterns:
+      - pattern: 'test.describe.configure({retries: ...})'
+    message: >
+      Playwright retries may classify or temporarily contain a flake, but must
+      not turn it into a clean pass. Record owner, ticket, expiry, and artifacts
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
 
   # ── Focused / skipped tests must not reach the main branch ────────────────
   - id: qa-no-focused-tests-js
@@ -130,6 +176,41 @@ rules:
     message: >
       Skipped test on the main branch is a quarantine without an expiry date.
       Fix it or delete it; if quarantining, time-bound it
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
+
+  - id: qa-no-skipped-tests-python
+    languages: [python]
+    paths:
+      include: ["*_test.py", "test_*.py", "tests/**"]
+    pattern-either:
+      - pattern: pytest.skip(...)
+      - pattern: unittest.skip(...)
+    message: >
+      Skipped test requires a visible owner, ticket, and expiry/review date;
+      delete or repair it when the quarantine expires
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
+
+  - id: qa-no-disabled-tests-java
+    languages: [java]
+    paths:
+      include: ["*Test.java", "*Tests.java", "src/test/**"]
+    pattern: '@Disabled'
+    message: >
+      Disabled test requires a visible owner, ticket, and expiry/review date;
+      delete or repair it when the quarantine expires
+      (qa-testing-rules TEST-STRATEGY.md §7).
+    severity: INFO
+
+  - id: qa-no-ignored-tests-rust
+    languages: [rust]
+    paths:
+      include: ["*_test.rs", "tests/**"]
+    pattern-regex: '#\[ignore\]'
+    message: >
+      Ignored test requires a visible owner, ticket, and expiry/review date;
+      delete or repair it when the quarantine expires
       (qa-testing-rules TEST-STRATEGY.md §7).
     severity: INFO
 

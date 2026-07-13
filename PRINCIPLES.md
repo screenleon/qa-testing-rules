@@ -8,7 +8,7 @@
 
 "All tests are green" is a **meaningless sentence** unless you can add "when the implementation is broken, at least 95% of the time they will fail".
 
-→ Coverage is a lagging indicator; **mutation testing** is the real report card.
+→ Coverage is a lagging indicator; **mutation testing** is a report card for fault-detection strength, not a source of truth for expected behavior. A high mutation score means the suite detects selected simulated faults; it does not prove the assertions describe correct requirements. See `TEST-ORACLES.md`.
 
 ## 2. Independence
 
@@ -23,14 +23,14 @@ The same input must always produce the same output. **Tolerate it once, and the 
 Main sources of flakiness: time (inject fake clock), randomness (seeded RNG), order (sorted assertion), concurrency (deterministic synchronization), external IO (isolate boundaries).
 
 **Iron rules:**
-- When you see flaky behavior, find the root cause immediately; do not retry / skip
+- When you see flaky behavior, find the root cause immediately; do not use retry / skip as the fix
 - Flake 3 consecutive times -> automatic quarantine (time-bound 7 days; delete if not fixed by expiration)
-- **Strictly forbidden**: using framework retry flags (`jest --retry` / `flaky: true`) as the solution
+- Retries are allowed only for detection, classification, or temporary containment; a retry-pass remains visibly **flaky**, never a clean first-run pass
 - See `TEST-STRATEGY.md` §7
 
 ## 4. Readability > concision
 
-Tests are **executable specification documents**. A future reader must be able to see within 30 seconds: (1) what is being verified, (2) why this result is expected, and (3) what is broken if it fails.
+Tests are **executable specification documents** only when their oracle is trustworthy. A future reader must be able to see within 30 seconds: (1) what is being verified, (2) why this result is expected, and (3) what is broken if it fails.
 
 Do not abstract for DRY until the test becomes unreadable; duplication in tests costs less than abstraction.
 

@@ -3,6 +3,8 @@
 > Applies when the SUT contains an LLM call (chat completion, agent loop, RAG pipeline, classification-by-prompt). Read this when the standard rules collide with non-deterministic output.
 >
 > The 12 categories in `TEST-CATEGORIES.md` still apply. What changes is **how you assert**, **where you run**, and **what "green" means**.
+>
+> This file is not about tests written or changed by an AI coding agent; for those, read `TEST-ORACLES.md`.
 
 ---
 

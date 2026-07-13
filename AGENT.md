@@ -4,11 +4,12 @@
 
 ---
 
-## 0. Three Red Lines (violating any one means this submission has failed)
+## 0. Four Red Lines (violating any one means this submission has failed)
 
 1. **Do not write a test unless you are sure it will fail when the implementation breaks.** Better not to write it.
 2. **Do not mock the SUT's own logic.** Mocking must stop at external boundaries (DB / network / time / filesystem / third-party SDK).
 3. **Do not rely on `sleep(N)` to wait for async results.** Use deterministic event / fake clock / await.
+4. **Do not derive expected behavior from the same implementation under test.** Exception: explicitly labeled `[characterization]` tests only.
 
 ---
 
@@ -127,6 +128,7 @@ Each test **must** have:
 3. **AAA visually separated into three parts** (Arrange / Act / Assert)
 4. **Concrete assertion**: use `toBe(specific value)` / `toEqual({...})`, **not** `toBeTruthy` / `toBeDefined` as the main assertion
 5. **Error path** asserts concrete error type + that the side effect really did not happen
+6. **Oracle identified**: important expected behavior cites a requirement, contract, invariant, reference model, approval, or explicit characterization
 
 **One scenario per test function.** Do not use table-driven tests to stuff multiple independent behaviors into one function (except pure function input/output mappings).
 
@@ -150,6 +152,7 @@ For each core test, do **at least one**:
 - [ ] Error path asserts concrete error type, not unspecified `toThrow()`
 - [ ] Also verified that side effects "really do not happen when they should not happen"
 - [ ] Assertions use concrete hard-coded values, not implementation formulas to compute expected values
+- [ ] Important expected values have independent provenance; characterization tests are visibly labeled
 - [ ] Mutation self-test has been done for core tests
 - [ ] Green across 3 consecutive runs
 
@@ -159,6 +162,8 @@ Proactively state:
 - I chose the **layer**: unit / integration / contract / E2E + reason
 - Which categories I covered; which were **intentionally N/A** + reasons
 - Which mutation self-tests I performed
+- **Test timing**: test-first / characterization-first / contract-first / eval-first / test-after (with justification)
+- **Oracle source** for important expected behavior
 
 ---
 
@@ -189,6 +194,7 @@ Stance: **pessimistic reviewer**.
 - ✗ Mock covers the SUT's own logic → move the mock to an external boundary
 - ✗ `sleep` / shared mutable state / cwd dependency → rewrite
 - ✗ Table-driven test stuffs independent scenarios → split into multiple functions
+- ✗ Expected value comes only from the changed implementation / runtime output → require independent evidence or label as characterization
 
 For each test, **mentally run mutation**: "If the implementation's `>` is changed to `>=`, will this test fail?" If the answer is no, reject it.
 
@@ -206,6 +212,10 @@ For each test, **mentally run mutation**: "If the implementation's `>` is change
 | Need good vs bad code comparisons | `EXAMPLES.md` |
 | SUT calls an LLM / output is non-deterministic | `LLM-TESTING.md` |
 | Adding tests to untested legacy code before changing it | `LEGACY-TESTING.md` |
+| Writing/reviewing AI-generated tests, assertions, snapshots, or golden files | `TEST-ORACLES.md` |
+| Selecting cases from a large input or configuration space | `TEST-DESIGN.md` |
+| Accessibility behavior or review | `ACCESSIBILITY-TESTING.md` |
+| Dependency failure, queue, capacity, canary, or recovery behavior | `RELIABILITY-TESTING.md` |
 | Want to understand the why behind the principles | `PRINCIPLES.md` |
 
 **Do not read them when unnecessary** — this AGENT.md already covers 80% of tasks.

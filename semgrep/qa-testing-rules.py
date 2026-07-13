@@ -3,6 +3,8 @@
 # Clean alternatives (no annotation) verify the rule doesn't fire on correct code.
 
 import time
+import pytest
+import unittest
 
 
 # ── qa-no-sleep-in-tests-python (ERROR) ──────────────────────────────────────
@@ -19,6 +21,18 @@ def test_sleep_ok():
     do_work_async()
     wait_until(lambda: get_result() == "done", timeout=1.0)
     assert get_result() == "done"
+
+
+# ── qa-no-skipped-tests-python (INFO) ────────────────────────────────────────
+
+def test_skip_bad():
+    # ruleid: qa-no-skipped-tests-python
+    pytest.skip("needs owner and expiry")
+
+
+def test_unittest_skip_bad():
+    # ruleid: qa-no-skipped-tests-python
+    unittest.skip("needs owner and expiry")
 
 
 # ── stubs so the fixture file is parseable ────────────────────────────────────

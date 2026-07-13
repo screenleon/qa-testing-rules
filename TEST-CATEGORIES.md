@@ -109,6 +109,17 @@ Externally observable effects must verify **what should happen happens, and what
 
 Testing principle: every OWASP-item test should be **black-box** — provide specific input, then verify HTTP status + data that should not be returned really does not appear.
 
+### Versioned security traceability
+
+Do not copy security standards into this repository. For security-relevant tests, link the applicable versioned requirement and procedure where the project uses them:
+
+```yaml
+security_requirement: ASVS-v5.0.0-<requirement-id>
+test_procedure: WSTG-v42-<CATEGORY>-<NN>
+```
+
+For example, a versioned WSTG scenario uses an identifier such as `WSTG-v42-ATHZ-04`, not a chapter number or a free-form scenario name. Use exact identifiers from the selected ASVS/WSTG release, record any project-specific interpretation, and upgrade the baseline deliberately. The metadata identifies the rule being tested; it does not replace a concrete black-box assertion or human security review.
+
 ## 10. Performance / scale boundaries
 
 This is not benchmark; it is a **spec boundary**:

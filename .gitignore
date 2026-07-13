@@ -10,3 +10,5 @@ node_modules/
 .gate-results/
 .agent-trace/
 .agents/
+
+.pm-dispatch

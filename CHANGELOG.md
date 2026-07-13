@@ -8,6 +8,20 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- `TEST-ORACLES.md`: Tier 2 guidance for oracle provenance, characterization status, high-risk assertion/snapshot/golden changes, AI-generated-test acceptance gates, test timing, and PR evidence.
+- `TEST-DESIGN.md`: technique-selection guide for partitions, boundaries, decision tables, pairwise/t-way combinations, state models, metamorphic/differential testing, and exploratory charters.
+- `ACCESSIBILITY-TESTING.md`: WCAG 2.2-aligned automated and manual/assisted accessibility evidence.
+- `RELIABILITY-TESTING.md`: dependency failure, retry/backoff, circuit-breaker, queue, capacity, canary, probe, restore, and recovery guidance.
+- `TEST-CATEGORIES.md`: versioned ASVS/WSTG traceability metadata convention.
+- Semgrep coverage for Java, C#, Rust, Python skipped tests, and Playwright retry configuration, with fixtures for the added Java/C#/Rust rules.
+
+### Changed
+- `AGENT.md` and `CHEATSHEET.md`: fourth Red Line requires independent expected-behavior evidence except for labeled characterization tests; delivery reports include test timing and oracle source.
+- `PRINCIPLES.md`: mutation testing is scoped to fault-detection strength, not correctness provenance; retry policy permits visible classification/containment but never clean retry-passes.
+- `LEGACY-TESTING.md`, `LLM-TESTING.md`, `ANTI-PATTERNS.md`, `TEST-STRATEGY.md`, and `README.md`: linked oracle governance, AI-test scope, accessibility/reliability supplements, revised retry policy, and anti-patterns for oracle laundering and assertion rewriting.
+- `semgrep/README.md` now enumerates every supported-language fixture; `TEST-CATEGORIES.md` now specifies the OWASP versioned WSTG scenario-ID format (`WSTG-v42-<CATEGORY>-<NN>`).
+
 ---
 
 ## [v1.2.0] - 2026-06-11

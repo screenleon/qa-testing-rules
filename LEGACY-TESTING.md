@@ -38,6 +38,8 @@ test('[characterization] fee(100) returns 12.5', () => {
 
 A characterization test that finds suspicious behavior is a **success**: you found a latent bug before refactoring buried it deeper. File it; do not silently "correct" the behavior mid-refactor.
 
+Record the observed source, owner, and decision needed to promote or replace each important characterization case. It remains characterization until independent evidence confirms it; see `TEST-ORACLES.md` for provenance and status rules.
+
 **Coverage target:** every branch of the code **you are about to change** — not the whole module. Use the change as the scope (see §4).
 
 ---
@@ -100,5 +102,5 @@ You will not retrofit tests for everything. Order of attack:
 3. Write **characterization tests** (§1) for every affected branch; label them
 4. Anything suspicious found → **report it, don't fix it silently**; ask a person (per `AGENT.md` §2.1)
 5. Now make the change; characterization tests catch unintended behavior shifts
-6. **Promote or retire:** tests covering behavior the change intentionally altered get rewritten as spec tests with the new expected values; confirmed-correct characterization tests get relabeled as spec tests
+6. **Promote or retire:** tests covering behavior the change intentionally altered get rewritten as spec tests only after linking the independent decision/contract; confirmed-correct characterization tests get relabeled as spec tests with their evidence
 7. Run the standard `AGENT.md` Step 4–6 (mutation self-test, checklist, delivery report) on the final state

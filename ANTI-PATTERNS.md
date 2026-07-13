@@ -1,4 +1,4 @@
-# Anti-Patterns — 17 testing anti-patterns
+# Anti-Patterns — 19 testing anti-patterns
 
 > Each entry: **symptom → why bad → fix**. After writing tests / when reviewing others' tests, grep and compare against this.
 
@@ -246,16 +246,35 @@ expect(apiClient.fetchProduct).toHaveBeenCalledTimes(1);  // only one API call (
 
 ---
 
+## 18. Oracle laundering
+
+**Symptom:** A test observes the current implementation, copied runtime output, or an AI-generated guess and presents it as the correct expected behavior.
+
+**Why bad:** The test can be deterministic and kill mutations while still preserving a bug. It creates a false specification that becomes harder to challenge over time.
+
+**Fix:** Identify independent provenance: requirement, contract, invariant, reference model, or reviewed approval. If the only evidence is current behavior, label the test `[characterization]`, state its lifecycle, and do not call it a verified spec. See `TEST-ORACLES.md`.
+
+## 19. Green by rewriting assertions
+
+**Symptom:** Production code changes, a test fails, and the assertion/snapshot/golden value is automatically updated until CI is green.
+
+**Why bad:** The PR changes both the behavior and the definition of success with no independent check. A regression can be converted into an approved-looking baseline.
+
+**Fix:** Treat expected-value, snapshot, golden, and approved-eval changes as high-risk. Link an independent requirement, contract, incident, or approved decision; explain old and new behavior; obtain domain-owner review where needed. Never justify the update with “the new implementation returns this.” See `TEST-ORACLES.md`.
+
+---
+
 ## Reviewer Red Flag Checklist (30-second scan)
 
 - ✗ Test names are all `should work` / `test 1` / `happy case`
 - ✗ Tests only contain `toBeTruthy` / `toBeDefined`
 - ✗ Mocks outnumber real code
 - ✗ `test.skip` / `xit` / `only` appears on the main branch
-- ✗ Retry mechanisms (`jest --retry` / `flaky: true`)
+- ✗ Retry-pass reported as clean instead of visibly flaky with an owner and expiry
 - ✗ Commit message says "fix flaky test" but diff adds sleep / changes timeout
 - ✗ PR adds 200 lines of implementation but only 1 test
 - ✗ Every table-driven case is a different behavior
 - ✗ Test imports `internal/` package directly — should go through testutil helper
 - ✗ See `os.Chdir` / `process.chdir` / `os.Setenv` instead of `t.Setenv`
+- ✗ Expected value changes with production code but has no independent evidence
 - ✗ Helper failure only `t.Log`s and does not `t.Fatal`

@@ -9,6 +9,11 @@
 // ruleid: qa-no-jest-retry
 jest.retryTimes(3);
 
+// ── qa-playwright-retries-require-flake-governance (INFO) ────────────────────
+
+// ruleid: qa-playwright-retries-require-flake-governance
+test.describe.configure({ retries: 2 });
+
 // ── qa-no-sleep-in-tests-js (ERROR) ──────────────────────────────────────────
 
 it('bad: setTimeout promise delay', async () => {

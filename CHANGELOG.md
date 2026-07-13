@@ -8,6 +8,10 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+---
+
+## [v1.3.0] - 2026-07-13
+
 ### Added
 - `TEST-ORACLES.md`: Tier 2 guidance for oracle provenance, characterization status, high-risk assertion/snapshot/golden changes, AI-generated-test acceptance gates, test timing, and PR evidence.
 - `TEST-DESIGN.md`: technique-selection guide for partitions, boundaries, decision tables, pairwise/t-way combinations, state models, metamorphic/differential testing, and exploratory charters.

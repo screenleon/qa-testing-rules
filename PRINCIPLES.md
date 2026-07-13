@@ -24,7 +24,7 @@ Main sources of flakiness: time (inject fake clock), randomness (seeded RNG), or
 
 **Iron rules:**
 - When you see flaky behavior, find the root cause immediately; do not use retry / skip as the fix
-- Flake 3 consecutive times -> automatic quarantine (time-bound 7 days; delete if not fixed by expiration)
+- Set risk-appropriate quarantine thresholds; 3 consecutive flakes and a 7-day expiry are recommended defaults, not universal constants
 - Retries are allowed only for detection, classification, or temporary containment; a retry-pass remains visibly **flaky**, never a clean first-run pass
 - See `TEST-STRATEGY.md` §7
 

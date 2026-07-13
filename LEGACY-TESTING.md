@@ -38,7 +38,7 @@ test('[characterization] fee(100) returns 12.5', () => {
 
 A characterization test that finds suspicious behavior is a **success**: you found a latent bug before refactoring buried it deeper. File it; do not silently "correct" the behavior mid-refactor.
 
-Record characterization provenance next to important cases: the observed version/trace, why the behavior is being pinned, its owner, and the decision needed to promote or replace it. It has `status: characterization`, never `verified_spec`, until independent product, contract, invariant, or approval evidence confirms it. See `TEST-ORACLES.md`.
+Record the observed source, owner, and decision needed to promote or replace each important characterization case. It remains characterization until independent evidence confirms it; see `TEST-ORACLES.md` for provenance and status rules.
 
 **Coverage target:** every branch of the code **you are about to change** — not the whole module. Use the change as the scope (see §4).
 

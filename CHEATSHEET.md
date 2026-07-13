@@ -117,5 +117,5 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 - `toBeTruthy` / `toBeDefined` as main assertion
 - Mocks outnumber real code
 - `test.skip` / `only` on the main branch
-- `jest --retry` / `flaky: true` hides flake
+- Retry-pass is reported as clean, or has no owner, ticket, expiry, and diagnostic artifacts
 - `os.Chdir` / `process.chdir` / `os.Setenv` instead of `t.Setenv`

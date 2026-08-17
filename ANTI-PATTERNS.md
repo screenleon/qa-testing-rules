@@ -1,4 +1,4 @@
-# Anti-Patterns — 19 testing anti-patterns
+# Anti-Patterns — 20 testing anti-patterns
 
 > Each entry: **symptom → why bad → fix**. After writing tests / when reviewing others' tests, grep and compare against this.
 
@@ -41,6 +41,27 @@ test('user is created', () => {
 - Async tests must `await`
 - After writing, intentionally break the implementation to verify the test fails (mutation self-test)
 - Use `expect.assertions(n)` to ensure at least n asserts ran
+
+### 4b. Variant: a missing dependency reported as `pass`
+
+**Symptom:** The case degrades to success when a tool or service it needs is absent.
+
+```bash
+# Bad: no sqlite3 -> the case is recorded as PASS
+command -v sqlite3 >/dev/null 2>&1 || { pass "$name (sqlite unavailable)"; return 0; }
+```
+```bash
+# Bad: assertion helper silently succeeds when jq is missing
+assert_json_field() { [[ "$HAVE_JQ" -eq 1 ]] || return 0; ... }
+```
+
+**Why bad:** This is the always-passing anti-pattern wearing a plausible excuse. It also **corrupts the suite-level report**: a run that says "100 suites, 0 skipped" then means only "100 scripts exited 0", not "every declared case executed". Once a summary cannot distinguish *verified* from *never ran*, every decision downstream of it — release sign-off, coverage judgment, what to test next — rests on a number that is not what it claims to be.
+
+**Fix:**
+- Emit a real `skip` carrying a **reason**, and surface skip counts in the run report.
+- Report a **missing required dependency as an infra error, not a pass and not a product failure** (see `TEST-STRATEGY.md` §7.1).
+- Only cases a manifest explicitly marks optional / platform-specific may skip; an authoritative run must **refuse to report success** when a required case was skipped.
+- The same rule covers `if (!featureEnabled) return;` early-returns and any guard that turns "could not run" into "ran fine".
 
 ## 5. Order-dependent tests
 
@@ -147,9 +168,9 @@ git.Checkout("develop")  // internal function finds repo via cwd
 
 ## 14. Test has no intent
 
-**Symptom:** Name is `test 1` / `should work` / no docstring.
+**Symptom:** Name is `test 1` / `should work`; or the name is vague and no docstring supplies the missing intent.
 **Why bad:** When CI turns red, "test 1 failed" has no diagnostic value; reviewer / agent cannot understand the test without reading the implementation.
-**Fix:** Full-sentence behavior description + structured docstring (see `PRINCIPLES.md` §10):
+**Fix:** A full-sentence behavior description in the **name** is the primary carrier of intent. Add a structured docstring when the name cannot carry it alone — concurrency, security, and multi-stage scenarios always (`AGENT.md` Step 3, `PRINCIPLES.md` §10). A well-named single-assertion case needs no docstring; a docstring never rescues a bad name.
 
 ```js
 /**
@@ -244,8 +265,6 @@ expect(apiClient.fetchProduct).toHaveBeenCalledTimes(1);  // only one API call (
 
 **Exception:** "the interaction itself is the spec" — `OrderPlaced` event **must** be emitted once (more than once = bug) -> verifying call count is valid. Judgment standard: "Does calling fewer / more times change user behavior?" If yes -> verify; if no -> do not verify.
 
----
-
 ## 18. Oracle laundering
 
 **Symptom:** A test observes the current implementation, copied runtime output, or an AI-generated guess and presents it as the correct expected behavior.
@@ -261,6 +280,36 @@ expect(apiClient.fetchProduct).toHaveBeenCalledTimes(1);  // only one API call (
 **Why bad:** The PR changes both the behavior and the definition of success with no independent check. A regression can be converted into an approved-looking baseline.
 
 **Fix:** Treat expected-value, snapshot, golden, and approved-eval changes as high-risk. Link an independent requirement, contract, incident, or approved decision; explain old and new behavior; obtain domain-owner review where needed. Never justify the update with “the new implementation returns this.” See `TEST-ORACLES.md`.
+
+## 20. Source-shape proxy test: asserting on the code's text instead of its behavior
+
+**Symptom:** The test reads the implementation as *text* and asserts on what it finds, instead of running it and asserting on what it does.
+
+```bash
+# Bad: greps the source to enforce "must run on Bash 4.2" by banning a 4.3 feature
+grep -q 'local -n' "$lib" && fail "namerefs are not allowed"
+```
+```bash
+# Bad: asserts a script's body contains an exact literal
+grep -qF "printf '.pm-dispatch/\n' > .gitignore" "$script" || fail "missing gitignore write"
+```
+
+**Why bad:** The assertion is a **proxy** for the real requirement, and proxies fail in both directions.
+
+- **False confidence:** banning one 4.3 construct does not prove the command path runs on 4.2 — every other 4.3+ construct sails through. Finding the literal does not prove the script ever executes that line.
+- **False alarms:** the test turns red for a correct refactor — a safe wrapper, a build-time transform, an equivalent rewrite — while user-visible behavior is unchanged. It freezes an implementation shape (`ANTI-PATTERNS` #2) with grep as the enforcement mechanism.
+
+It is tempting because it is cheap to write and easy for a reviewer to accept. That is exactly why it accumulates.
+
+**Fix:** Test the requirement, not its shadow.
+
+| Proxy assertion | Real requirement | Test it as |
+|---|---|---|
+| source must not contain a 4.3 construct | works on Bash 4.2 | run a smoke set under an actual 4.2 interpreter |
+| script body contains literal X | the script produces effect X | execute it in a sandbox, assert the resulting file / state |
+| a function named `_validate` exists | invalid input is rejected | call the public entry point with invalid input, assert the rejection |
+
+**Narrow exception:** the source text *is* the deliverable — a license header, a generated-file banner, a lint rule for a style the toolchain cannot express. Even then, keep it in a lint lane, not in the behavior suite.
 
 ---
 
@@ -278,3 +327,7 @@ expect(apiClient.fetchProduct).toHaveBeenCalledTimes(1);  // only one API call (
 - ✗ See `os.Chdir` / `process.chdir` / `os.Setenv` instead of `t.Setenv`
 - ✗ Expected value changes with production code but has no independent evidence
 - ✗ Helper failure only `t.Log`s and does not `t.Fatal`
+- ✗ A missing tool / dependency makes the case `pass` — a required one is an `infra_error`, an optional one a reasoned `skip`
+- ✗ A CLI or subprocess is invoked with no exit-code assertion, or with a bare `|| true`
+- ✗ A **behavior-suite** test `grep`s implementation text instead of executing it (a lint-lane check is fine when the source text is itself the deliverable — #20)
+- ✗ The case exists mainly so a reviewer stops raising the same point (`TEST-ORACLES.md` §4.1)

@@ -188,6 +188,27 @@ expect(response).toBeAuthorizedFor('admin');
 4. Run a risk-appropriate repeated-run count (100 is a recommended high-confidence example) green -> considered fixed
 5. **Do not "fix" by increasing timeout / adding sleep**
 
+### §7.1 Infra failure is not a product regression
+
+A run has at least **five** outcomes, and collapsing them loses the information you most need:
+
+| Status | Meaning | Who acts |
+|---|---|---|
+| `pass` | ran, behavior correct | nobody |
+| `fail` | ran, behavior wrong | the author — this is the product signal |
+| `timeout` | ran, did not finish in budget | author or infra, depending on root cause |
+| `skip` | deliberately not run, **with a reason** | nobody, if the manifest allows it here |
+| `infra_error` | **could not run**: missing tool, wrong pinned version, unreachable service, provisioning gap | whoever owns the environment |
+
+**Why it matters:** an `infra_error` reported as `fail` sends the author hunting a product bug that does not exist; reported as `pass` (see `ANTI-PATTERNS.md` #4b) it silently deletes the coverage. Both waste the expensive kind of time. It is also self-perpetuating: a review round that ends in an environment failure produces no behavior evidence, so it gets repeated — and repeating it changes nothing, because the environment is the same each time.
+
+**Policy:**
+1. Distinguish `infra_error` from `fail` in the runner's status vocabulary and in the run report.
+2. **Every lane that validates the same artifact resolves its tooling the same way** — reviewers, local runs, and CI share one pinned launcher. Different lanes running different tool versions cannot converge, no matter how many rounds you spend.
+3. **Do not rerun an unchanged environment** — it cannot produce a different answer, and repeating it is what turns one provisioning gap into five wasted review rounds. After a documented environment correction, rerun the same artifact with the same pinned launcher as a **fresh validation**: preserve the prior `infra_error` in the run history, and report the new execution as `pass`, `fail`, or `infra_error` on its own merits. This is not a flaky-test retry, and a test that now executes cleanly is not marked `FLAKY` merely because the environment previously could not run it.
+4. An authoritative / sign-off run **must not report success** while any required case is in `skip` or `infra_error`.
+5. Report skipped and infra-errored **case counts**, not just suite counts — a suite-level tally cannot reveal a case that never executed.
+
 ---
 
 ## §8 One-sentence summary

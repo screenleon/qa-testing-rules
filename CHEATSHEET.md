@@ -48,7 +48,7 @@
 ## Every Test Must Have
 
 1. **Behavior-descriptive function name**: `returns 401 when token is expired`
-2. **Structured docstring**:
+2. **Structured docstring** — required for concurrency / security / multi-stage scenarios; optional when the name already carries the intent:
    ```
    <one sentence: what is being verified>
    Steps:
@@ -91,19 +91,22 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 
 ## Top anti-pattern symptoms
 
-- `should work` / `test1` / no docstring, so CI red gives no visible intent
+- `should work` / `test1`, or a vague name with no docstring, so CI red gives no visible intent
 - `toBeTruthy` / `toBeDefined` as the main assertion, without concrete expected
 - Mocks outnumber real code, or even mock the SUT's own helper
 - `sleep` / adding timeout hides flake instead of waiting for a deterministic condition; retry-pass is reported clean
 - Error path only verifies `toThrow()`, without verifying concrete error type and "no side effects"
 - Table-driven stuffs different scenarios into one test, making failures hard to locate
 - `os.Chdir` / `process.chdir` / `os.Setenv` pollutes global state
+- A missing tool / dependency makes the case `pass` (required → `infra_error`, optional → `skip`), so "0 skipped" stops meaning anything
+- A CLI or subprocess runs with no exit-code assertion, or behind a bare `|| true`
+- The test `grep`s the implementation's source text instead of executing it
 
 ---
 
 ## 5-item Pre-delivery Self-check
 
-- [ ] Every test has a behavior name + docstring
+- [ ] Every test has a behavior name; a docstring wherever `AGENT.md` Step 3 requires one
 - [ ] Every test passes when run on its own (no order dependency)
 - [ ] No `sleep` / `setTimeout` or similar async waiting
 - [ ] Error path asserts **concrete error type**
@@ -113,7 +116,7 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 
 ## 30-second Reviewer Red Flags
 
-- Function name `test1` / `should work` / no docstring
+- Function name `test1` / `should work`, or a required docstring missing
 - `toBeTruthy` / `toBeDefined` as main assertion
 - Mocks outnumber real code
 - `test.skip` / `only` on the main branch

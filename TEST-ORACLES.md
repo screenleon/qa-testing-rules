@@ -78,6 +78,42 @@ An AI-generated test is acceptable only when all applicable gates pass:
 
 Coverage, a first-run pass, and a green build are useful filters; none proves that the expected behavior is correct.
 
+### 4.1 Admitting a permanent regression test
+
+§4 asks whether a test is *acceptable*. This asks whether it has earned a **permanent slot in the blocking suite** — the question a review finding raises when its proposed remedy is "add a test".
+
+A suite that gains one permanent case per review finding stops being a safety net and becomes a tax: the cases accumulate faster than the risk does, and eventually need their own meta-tests to stay correct. The failure mode is a case whose real purpose is to stop a reviewer raising the point again rather than to stop a user-visible regression.
+
+**Admit it only when all of these hold**, in addition to §4's gates — of which **5 (fault-sensitive)** and **6 (non-duplicative)** already carry most of the weight here:
+
+1. It pins a **stable, externally observable contract** with independent evidence under Red Line 4 — not a private helper, internal call order, or exact wording.
+2. It exercises **supported behavior**, or the **documented boundary rejection** for unsupported input. Test each documented rejection contract once; do not add progressively farther-out inputs asserting the same rejection.
+3. The risk has a **plausible occurrence rate or high impact** — "constructible" is not "plausible". When you cannot judge this from the code and the project's stated scope, raise the finding as advisory and say what evidence you lack.
+4. It does not **freeze an implementation shape** — no source grep, no source-literal assertion (`ANTI-PATTERNS.md` #20).
+
+**Precedence over the bug-regression workflow.** For a **confirmed defect**, `AGENT.md` §2.2 is unchanged and comes first: write the failing test that reproduces it, then fix. §4.1 decides only whether that test is **retained permanently in the blocking suite** — never whether it is written, and never whether the bug is fixed. A finding whose defect is *not* confirmed has no test to retain, and §4.1 applies on its own.
+
+**When a criterion fails, do not add it to the blocking suite. Resolve the underlying finding another way, and say which:**
+
+- Fix the code and add **no** permanent test (record the reasoning in the PR; for a confirmed defect this means the reproducing test proved the fix and was then not retained).
+- **Fold** it into an existing parameterized case or a broader existing scenario.
+- Move it to an **extended suite** that runs only when the relevant module changes.
+- Open a **follow-up ticket** instead of blocking this change.
+- **Reject the finding with evidence** when its premise does not hold. A finding is a hypothesis, not an order; disproving it is a complete response.
+
+**None of these waive a confirmed defect.** They decide whether a permanent blocking test is the right artifact, not whether the bug is fixed.
+
+For a **confirmed, in-support, high-impact** defect, the bar is higher: either existing coverage already fails on it, or an admitted test is added. **Accepted risk is not a third option on its own.** It counts only as a bounded, temporary state, and release sign-off is blocked until all four exist:
+
+1. an **approver who is not the author**;
+2. an **expiry date** — on expiry the risk is re-decided, not silently renewed (the quarantine idiom in `TEST-STRATEGY.md` §7);
+3. a **compensating control** that would detect the defect in production — monitoring, an alert, or a non-blocking check;
+4. a recorded **release/rollback decision**: what ships, and what triggers reverting it.
+
+A named owner and a linked follow-up ticket are the *minimum record*, not the justification. Without all four, a confirmed high-impact defect is unresolved and the change does not ship.
+
+**Reviewer-side duty:** when raising a finding whose remedy implies a new permanent test, state which criteria it meets. One that cannot clear them is advisory, not a blocker.
+
 ## 5. Choose test timing from oracle confidence
 
 > Prefer test-first when the intended behavior and oracle are known. When either is unknown, establish the oracle first.

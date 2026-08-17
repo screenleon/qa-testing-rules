@@ -87,7 +87,7 @@ TestStartFeatureBranch
 TestFinishWithMergeConflict
 ```
 
-**Mandatory docstring:**
+**Docstring — required for concurrency, security, and multi-stage scenarios; optional where a behavior-descriptive name already carries the full intent (`AGENT.md` Step 3):**
 
 ```
 // <one sentence: what this test verifies>

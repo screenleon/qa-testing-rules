@@ -110,12 +110,20 @@ The following categories **must include a concrete reason** when marked N/A; if 
 
 **Never N/A:** #1 Happy path. Without a happy path, there is no test baseline.
 
+### Step 2.5 — A finding does not automatically earn a permanent test
+
+When a **review finding**'s proposed remedy is a new permanent, blocking test, that test must be admitted, not assumed. Admit one only for a plausible-or-high-impact risk on a **supported, externally observable contract that existing coverage does not already catch**, and that does not freeze an implementation shape. Otherwise resolve the finding another way — strengthen an existing case, move it to an extended suite, open a follow-up, or reject the finding with evidence — and say which.
+
+Full criteria, alternatives, and the reviewer-side duty: `TEST-ORACLES.md` §4.1. Fault sensitivity and non-duplication are already §4 gates 5–6; the proxy-test trap is `ANTI-PATTERNS.md` #20.
+
+Suites that gain one permanent case per finding outgrow the risk they cover. Fixing the defect is never optional; making it permanent and blocking is the decision.
+
 ### Step 3 — Write each test
 
 Each test **must** have:
 
 1. **Behavior-descriptive function name**: `returns 401 when token is expired`, not `test1`
-2. **Structured docstring**:
+2. **Structured docstring — required only when the name cannot carry the intent**:
 
    ```
    <one sentence: what behavior is being verified>
@@ -124,6 +132,12 @@ Each test **must** have:
    2. <trigger>
    3. <verify>
    ```
+
+   **Require it for:** concurrency scenarios, security boundaries, and any multi-stage scenario (more than one trigger, or setup a reader cannot infer from the name).
+
+   **Do not require it for:** single-assertion parser / validation / mapping cases where a behavior-descriptive name already says everything the docstring would. `rejects_negative_limit` needs no paragraph explaining that it rejects a negative limit.
+
+   Mechanical docstrings on trivial cases are pure cost: they add review surface, drift out of date, and tempt teams into building a docstring linter — a check that protects comment formatting, not behavior. If a test file is only readable because every case carries a docstring, **split the file**; do not thicken the comments.
 
 3. **AAA visually separated into three parts** (Arrange / Act / Assert)
 4. **Concrete assertion**: use `toBe(specific value)` / `toEqual({...})`, **not** `toBeTruthy` / `toBeDefined` as the main assertion
@@ -144,7 +158,10 @@ For each core test, do **at least one**:
 
 ### Step 5 — Pre-delivery self-checklist
 
-- [ ] Every test has a behavior-descriptive name + structured docstring
+- [ ] Every test has a behavior-descriptive name; a structured docstring wherever Step 3 requires one
+- [ ] **Every CLI / subprocess invocation asserts its exit code explicitly**
+- [ ] **No bare `|| true` / `|| :` swallowing a failure** — the only exception is a case deliberately testing partial output, and it must still assert the exit code separately
+- [ ] **A missing dependency never produces a `pass`** — a *required* one is an `infra_error`; only an explicitly optional / platform-specific one may `skip`, with a reason (`ANTI-PATTERNS.md` #4b, `TEST-STRATEGY.md` §7.1)
 - [ ] Every test passes when run on its own (does not depend on execution order)
 - [ ] No `sleep` / `setTimeout` used as a synchronization mechanism
 - [ ] No `os.Chdir` / `process.chdir` / changing global `process.env` (use restorable mechanisms such as `t.Setenv`)
@@ -188,7 +205,7 @@ Additional rules:
 
 Stance: **pessimistic reviewer**.
 
-- ✗ Name is `test 1` / `should work` / no docstring → reject
+- ✗ Name is `test 1` / `should work`, or a docstring Step 3 requires is missing → reject
 - ✗ Only happy path → add boundary / negative / error categories
 - ✗ `toBeTruthy` as the main assertion → change to concrete value
 - ✗ Mock covers the SUT's own logic → move the mock to an external boundary
@@ -206,6 +223,8 @@ For each test, **mentally run mutation**: "If the implementation's `>` is change
 |---|---|
 | Unsure which test layer to use | `TEST-STRATEGY.md` §1–§2 |
 | Designing CI / environment policy / coverage threshold / flakiness policy | `TEST-STRATEGY.md` §3–§7 |
+| Deciding what a run should report when a tool is missing or a pinned version is wrong | `TEST-STRATEGY.md` §7.1 |
+| A review finding wants a new permanent blocking test | `TEST-ORACLES.md` §4.1; `ANTI-PATTERNS.md` #20 for the proxy-test trap |
 | Stuck on concrete sub-cases for a category | the corresponding section in `TEST-CATEGORIES.md` |
 | Boundary / negative enumeration feels endless (parser, serializer, money math) | `GENERATIVE-TESTING.md` |
 | See a smell in a test and want to confirm whether it is an anti-pattern | `ANTI-PATTERNS.md` |

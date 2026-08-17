@@ -8,6 +8,22 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `TEST-ORACLES.md` §4.1 — admission criteria for a permanent regression test. §4 asks whether a test is acceptable; §4.1 asks whether it has earned a permanent slot in the *blocking* suite, which is the question a review finding raises when its remedy is "add a test". Four criteria beyond §4's gates (observable contract with Red Line 4 provenance, supported behavior or a documented boundary rejection tested once, plausible-or-high-impact risk, no frozen implementation shape), five named alternatives when one fails, and a reviewer-side duty to state which criteria a finding meets. Fault sensitivity and non-duplication are **not** restated — they are already §4 gates 5 and 6. §4.1 states its precedence over the §2.2 bug-regression workflow: for a confirmed defect the reproducing test is still written first, and §4.1 decides only whether it is *retained* in the blocking suite. None of the alternatives waives a confirmed defect, and for a confirmed high-impact one accepted risk is not a standalone option — it is a bounded temporary state requiring a non-author approver, an expiry, a compensating detection control, and a recorded release/rollback decision before sign-off.
+- `AGENT.md` Step 2.5 — a short Tier 1 decision trigger: a finding does not automatically earn a permanent blocking test. The trigger is in the hot path because it changes reviewer behavior at the moment the inflow starts; the criteria and alternatives live in Tier 2 and are read on demand.
+- `ANTI-PATTERNS.md` #4b — a missing dependency reported as `pass` is a variant of always-passing, and it corrupts the run report: "0 skipped" then means "every script exited 0", not "every declared case ran".
+- `ANTI-PATTERNS.md` #20 — source-shape proxy tests (grepping the implementation's text instead of executing it). Covers both failure directions and gives a proxy → real-requirement mapping table.
+- `TEST-STRATEGY.md` §7.1 — infra failure is not a product regression. Five-status vocabulary including `infra_error`, one shared pinned toolchain across reviewer/local/CI lanes, and no authoritative success while a required case is skipped or infra-errored. Reruns are scoped so §7.1 neither duplicates nor loosens §7: an unchanged environment is never rerun, and a run after a documented correction is a *fresh validation* reported on its own merits — not a flaky-test retry, and not a reason to mark a now-clean test `FLAKY`.
+
+### Changed
+
+- `AGENT.md` Step 3 — structured docstrings are now required only for concurrency, security, and multi-stage scenarios. Single-assertion parser / validation / mapping cases rely on a behavior-descriptive name instead. An unreadable test file should be split, not annotated.
+- **Aligned every other docstring rule with that narrowing** — `AGENT.md` §2.3 reviewer stance, `PRINCIPLES.md` §10 ("Mandatory docstring"), `ANTI-PATTERNS.md` #14, and four places in `CHEATSHEET.md` previously rejected any test without a docstring, which would have made an agent both accept and reject the same well-named trivial case. The name is now stated as the primary carrier of intent; a docstring supplements it where Step 3 requires one, and never rescues a bad name.
+- `AGENT.md` Step 5 checklist — added explicit exit-code assertion for every CLI/subprocess invocation, a ban on bare `|| true`, and never-`pass` for a missing dependency. The checklist states the required-versus-optional split (required → `infra_error`, explicitly optional → reasoned `skip`) rather than a looser shorthand, so the hot path and the detailed §7.1 status policy prescribe the same outcome; the cheatsheet and red-flag lines match.
+- `ANTI-PATTERNS.md` reviewer red-flag checklist — four new scan items covering the above.
+- `.gitignore`: ignore `.dispatch-results/` alongside the existing agent-output directories.
+
 ---
 
 ## [v1.3.0] - 2026-07-13
@@ -69,7 +85,7 @@ Versions follow [Semantic Versioning](https://semver.org/).
 - `CHANGELOG.md`: This file
 
 ### Fixed
-- `ANTI-PATTERNS.md`: Corrected title from "15 種" to "17 種" after adding #16 and #17
+- `ANTI-PATTERNS.md`: Corrected the title from "15" to "17" after adding #16 and #17
 - `README.md`: Added `git diff --check main` as concrete release validation command
 - `README.md`: Added `CHEATSHEET.md` to reference table; replaced version tag placeholder
 

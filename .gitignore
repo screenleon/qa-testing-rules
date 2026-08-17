@@ -12,3 +12,4 @@ node_modules/
 .agents/
 
 .pm-dispatch
+.dispatch-results/

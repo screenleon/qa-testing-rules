@@ -110,7 +110,8 @@ Rule: "interaction is spec (user feels fewer calls) -> Mock; interaction is deta
 - [ ] Every test passes when run on its own (no order dependency)
 - [ ] No `sleep` / `setTimeout` or similar async waiting
 - [ ] Error path asserts **concrete error type**
-- [ ] Core tests have mutation self-test (break implementation -> confirm tests turn red)
+- [ ] Tests guarding invariants, known defects, or high-risk paths have a mutation self-test (break implementation -> confirm tests turn red)
+- [ ] Every new permanent test names the defect it catches and is not duplicated by existing coverage
 
 ---
 

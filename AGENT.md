@@ -41,9 +41,21 @@ Default stance: when both unit and integration can verify it, **choose integrati
 | Pure function / transformer | Unit | no IO, fast, highly deterministic |
 | LLM-powered feature | Unit/Integration (shell, LLM mocked) + Eval suite (model output) | non-deterministic output needs different assertions → `LLM-TESTING.md` |
 
+### Step 1.5 — Test value gate (before any new test)
+
+The checklists below measure whether a test is *well formed*. This gate asks whether it is *worth keeping*. For each test you plan to add, answer in one line each:
+
+1. **Which defect does it catch?** Name a plausible failure or a high-impact one. "Covers the branch" or "fills the category" is not an answer.
+2. **What protection is lost if it is deleted?** If an existing test already fails on that defect, do not add it.
+3. **Is the maintenance cost proportionate?** A simpler test, a contract check, or one extra row in an existing case may give the same protection.
+
+No clear answer to all three → do not add a permanent test; the category or branch is recorded as covered-by or N/A with the reason. This gate scales effort, it never waives a confirmed defect (`TEST-ORACLES.md` §4.1).
+
 ### Step 2 — Enumerate test categories (before writing the first line of test code)
 
 For each of the following 12 categories, answer **each one** with "Applicable / N/A" + concrete cases. Explicit N/A is better than silent omission.
+
+**Scale the output to the risk.** Trivial or low-risk changes (a pure mapping, a rename, a one-line fix with no IO or state) need only the categories that apply, one line each, plus the reason for any N/A that the gate below requires. The full matrix is for non-trivial SUTs: a DB write, payment, state machine, authn/authz boundary, concurrency, or a public contract.
 
 | # | Category | Prompt |
 |---|---|---|
@@ -148,13 +160,13 @@ Each test **must** have:
 
 ### Step 4 — Mutation self-test (before delivery)
 
-For each core test, do **at least one**:
+Apply it to tests that guard a business invariant, a known defect, or a high-risk path (money, auth, data loss, state transitions). Skip it for trivial mappings and tests whose failure is already obvious from the assertion. For each such test, do **at least one**:
 
 - Comment out one line of the implementation -> does the corresponding test fail?
 - Flip a comparison operator (`>` ↔ `<`) -> does it fail?
 - Remove the throw -> does the error path test fail?
 
-**Any mutation that does not make the test fail = that test does not protect against that mutation**, so add coverage.
+**A mutation that does not make the test fail = that test does not protect against that mutation.** Decide with the Step 1.5 gate whether that mutation is a defect worth protecting against: if yes, strengthen the test; if the mutated behavior is unsupported or covered elsewhere, say so and move on. Do not add cases just to turn a mutation red.
 
 ### Step 5 — Pre-delivery self-checklist
 
@@ -170,8 +182,9 @@ For each core test, do **at least one**:
 - [ ] Also verified that side effects "really do not happen when they should not happen"
 - [ ] Assertions use concrete hard-coded values, not implementation formulas to compute expected values
 - [ ] Important expected values have independent provenance; characterization tests are visibly labeled
-- [ ] Mutation self-test has been done for core tests
-- [ ] Green across 3 consecutive runs
+- [ ] Every new permanent test passes the Step 1.5 value gate
+- [ ] Mutation self-test has been done for tests that guard invariants, known defects, or high-risk paths
+- [ ] Green on repeat runs: 3 consecutive for anything with time, concurrency, IO, or shared state; one clean run is enough for a deterministic pure-logic unit test
 
 ### Step 6 — Delivery report
 
@@ -190,7 +203,7 @@ Proactively state:
 
 Additional rules:
 - **Do not write tests to accommodate the existing implementation**; that freezes a bug as a spec
-- List every SUT branch (if / switch / try-catch / early return / async error path), at least one test per branch
+- List the SUT's branches (if / switch / try-catch / early return / async error path) as a **map of what could be missed**, then cover each branch that carries observable behavior or risk. A branch that is an internal detail of behavior another test already pins (a refactor split, a guard clause, a defensive default) is recorded as covered-by, not given its own test. Branch count follows the implementation; test count should follow the behavior
 - If the SUT logic is unclear, **ask a person first**; do not make assumptions yourself
 - Exception for **refactoring untested code**: first pin current behavior with explicitly labeled `[characterization]` tests (temporary scaffolding, not spec), then change → workflow in `LEGACY-TESTING.md`
 
@@ -198,7 +211,7 @@ Additional rules:
 
 1. **First write a failing test that reproduces the bug** (red)
 2. Fix the SUT and see green
-3. Think about the bug's "neighbors": could the same root cause create a similar bug at another entry point? Add tests for those neighbors too
+3. Think about the bug's "neighbors": could the same root cause create a similar bug at another entry point? Add a test for a neighbor only when you can name the shared root cause and the neighbor is a supported path that nothing else covers; otherwise fix it, note it in the PR, or open a follow-up
 4. Test name / docstring references the issue / commit
 
 ### 2.3 Reviewing tests written by others / other agents

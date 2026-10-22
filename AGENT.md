@@ -226,7 +226,7 @@ Stance: **pessimistic reviewer**.
 - ✗ Table-driven test stuffs independent scenarios → split into multiple functions
 - ✗ Expected value comes only from the changed implementation / runtime output → require independent evidence or label as characterization
 
-For each test, **mentally run mutation**: "If the implementation's `>` is changed to `>=`, will this test fail?" If the answer is no, reject it.
+For each test, **mentally run mutation**: "If the implementation's `>` is changed to `>=`, will this test fail?" If the answer is no, apply the Step 4 rule: reject it when the mutated behavior is a supported contract or a plausible defect that nothing else covers; accept it when that behavior is unsupported or an existing test already fails on it. State which.
 
 ---
 
